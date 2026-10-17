@@ -29,6 +29,18 @@ flowchart LR
   classDef t fill:#eee,stroke:#555
 ```
 
+## Two implementations
+
+| | Python (`src/`) | TypeScript (`web/src/engine/`) |
+|---|---|---|
+| Purpose | Reference engine, 10,000-voter simulation, CLI | Interactive browser demo |
+| Verifier | `chunaviq_verify` (no imports from `chunaviq`) | `verifier.ts` (no imports from the TS election engine) |
+| Big integers | Python ints, optional GMP | `BigInt`, fixed-window exponentiation |
+| SHA-256 / Ed25519 | `hashlib` / `cryptography` | audited `@noble/hashes` / `@noble/curves` |
+| RSA key generation | `cryptography` | WebCrypto (native), exported as JWK |
+
+Both write and read the same `chunaviq-record/1` format, byte for byte; CI cross-verifies in both directions.
+
 ## Components → code
 
 | Component (blueprint) | Module | Notes |

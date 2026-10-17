@@ -1,4 +1,4 @@
-.PHONY: install test deep scale lint demo check-group site deploy
+.PHONY: install test deep scale lint demo check-group site deploy web-install web-test web-dev
 
 install:
 	pip install --require-hashes --no-deps -r requirements/runtime.txt -r requirements/dev.txt && pip install --no-deps --no-build-isolation -e .
@@ -24,7 +24,16 @@ demo:
 	chunaviq report run/verify.json run/observer-report.html && echo "open run/observer-report.html"
 
 site:
-	chunaviq report audits/scale-10k/verify.json site/report/index.html
+	chunaviq report audits/scale-10k/verify.json web/public/report/index.html
+
+web-install:
+	npm --prefix web ci
+
+web-test:
+	npm --prefix web run lint && npm --prefix web test
+
+web-dev:
+	npm --prefix web run dev
 
 deploy: site
-	vercel deploy --prod --yes
+	npm --prefix web run build && vercel deploy --prod --yes

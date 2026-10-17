@@ -1,3 +1,6 @@
 /*
-!site
 !vercel.json
+!web
+web/node_modules
+web/dist
+web/.record-test

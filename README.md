@@ -4,7 +4,7 @@
 
 **Research prototype** of an end-to-end verifiable, secret-ballot online election, with an **independent verifier** and an adversarial test suite. Legal and audit scope tailored to **India**.
 
-Live: **https://chunaviq.oglic.com** (landing page + 10,000-voter observer report)
+Live demo: **https://chunaviq.oglic.com** — cast a secret ballot in a synthetic election, try to cheat, count, and verify it yourself, all in the browser. The 10,000-voter observer report is at `/report`.
 
 > ⚠️ **Synthetic data only. Not certified. Not authorised. Not for any binding election.**
 > Only the Election Commission of India (Art. 324) or a State Election Commission (Arts. 243K, 243ZA) can authorise a voting method for a real election. A passing test suite is evidence for researchers, not permission to run an election. See [`docs/legal-scope-india.md`](docs/legal-scope-india.md).
@@ -27,6 +27,19 @@ public record ──▶ independent verifier ──▶ VERIFIED / NOT VERIFIED +
 | Anyone can check the result | Append-only RFC 6962 log, signed checkpoints, homomorphic tally, proven decryption, independent verifier |
 
 What it **does not** solve — coercion, vote-buying via self-revealed receipts, malicious devices that suppress challenges, denial of service, and credential minting by a dishonest eligibility authority — is written down in [`docs/threat-model.md`](docs/threat-model.md). Those gaps are the main reason this project does not recommend remote online voting for binding public elections.
+
+## The browser demo (`web/`)
+
+A second, independent implementation of the protocol in TypeScript (React + Vite) that runs a complete election inside one browser tab: key ceremony, blind credential, ballot encryption on the voter's device with a Benaloh check, a 110-voter synthetic crowd, six cheating attempts, threshold tally, full verification, and three record-tampering attempts.
+
+* Heavy cryptography runs in Web Workers; nothing is sent anywhere. There is no backend.
+* Records made in the browser pass the **Python** verifier, and Python-made records pass the **TypeScript** verifier. CI checks both directions on every push.
+* In the demo all roles (officer, trustees, eligibility authority, ballot box) live in the same tab so you can watch them. That is for teaching only; the security argument depends on those roles being run by different institutions.
+
+```bash
+make web-install && make web-test     # engine, interop and full UI-flow tests
+make web-dev                          # http://localhost:5173
+```
 
 ## Quick start
 
@@ -66,7 +79,8 @@ chunaviq report out/verify.json out/observer-report.html
 | `audits/` | Findings, remediation, scale evidence |
 | `tests/` | Crypto, rules, concurrency, recovery, privacy, tamper (outsider + insider), end-to-end, scale |
 | `tools/` | Group re-derivation, synthetic-data guard |
-| `site/`, `vercel.json` | Static site for Vercel: landing page + observer report (`make site` regenerates) |
+| `web/` | Browser demo and TypeScript engine + verifier (`web/src/engine`), UI (`web/src/App.tsx`), tests (`web/tests`) |
+| `vercel.json` | Vercel build of `web/` with a strict Content-Security-Policy |
 | `scripts/setup-github.sh` | Creates the GitHub repo with branch protection, security features and least-privilege Actions |
 
 ## Status
