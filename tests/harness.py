@@ -7,18 +7,18 @@ import json
 import shutil
 from pathlib import Path
 
-from evlab.crypto.encoding import canonical_json
-from evlab.crypto.group import get_group
-from evlab.crypto.merkle import MerkleTree
-from evlab.crypto.signing import RoleKey
-from evlab.election.administration import Administration, TrusteeHost
-from evlab.election.ballotbox import BallotBox
-from evlab.election.board import Board
-from evlab.election.client import VoterDevice
-from evlab.election.clock import FakeClock, iso
-from evlab.election.eligibility import EligibilityAuthority
-from evlab.election.manifest import build_manifest
-from evlab.election.roll import make_constituencies, make_roll
+from chunaviq.crypto.encoding import canonical_json
+from chunaviq.crypto.group import get_group
+from chunaviq.crypto.merkle import MerkleTree
+from chunaviq.crypto.signing import RoleKey
+from chunaviq.election.administration import Administration, TrusteeHost
+from chunaviq.election.ballotbox import BallotBox
+from chunaviq.election.board import Board
+from chunaviq.election.client import VoterDevice
+from chunaviq.election.clock import FakeClock, iso
+from chunaviq.election.eligibility import EligibilityAuthority
+from chunaviq.election.manifest import build_manifest
+from chunaviq.election.roll import make_constituencies, make_roll
 
 OPENS = dt.datetime(2026, 11, 2, 1, 30, tzinfo=dt.UTC)
 CLOSES = OPENS + dt.timedelta(hours=11)
@@ -27,7 +27,9 @@ CLOSES = OPENS + dt.timedelta(hours=11)
 class Election:
     """Builds an election up to READY (or OPEN with open_now=True)."""
 
-    def __init__(self, tmp: Path, *, voters_per=(6, 6), candidates=3, trustees=3, threshold=2, group="EVLAB-2048-256-V1", rsa_bits=2048, open_now=True) -> None:
+    def __init__(
+        self, tmp: Path, *, voters_per=(6, 6), candidates=3, trustees=3, threshold=2, group="CHUNAVIQ-2048-256-V1", rsa_bits=2048, open_now=True
+    ) -> None:
         self.tmp = Path(tmp)
         self.grp = get_group(group)
         self.clock = FakeClock(OPENS - dt.timedelta(days=1))

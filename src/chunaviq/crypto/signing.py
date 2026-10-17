@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from .encoding import canonical_json
 
-SIG_DOMAIN = b"evlab/v1/signed-body\x00"
+SIG_DOMAIN = b"chunaviq/v1/signed-body\x00"
 
 
 class RoleKey:

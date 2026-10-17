@@ -6,10 +6,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from evlab.crypto.blind import RSABlindSigner, blind, credential_message, unblind
-from evlab.crypto.elgamal import PublicKey, add, dlog_bounded
-from evlab.crypto.group import get_group
-from evlab.crypto.merkle import (
+from chunaviq.crypto.blind import RSABlindSigner, blind, credential_message, unblind
+from chunaviq.crypto.elgamal import PublicKey, add, dlog_bounded
+from chunaviq.crypto.group import get_group
+from chunaviq.crypto.merkle import (
     MerkleTree,
     consistency_proof,
     leaf_hash,
@@ -18,7 +18,7 @@ from evlab.crypto.merkle import (
     verify_consistency,
     verify_inclusion,
 )
-from evlab.crypto.threshold import (
+from chunaviq.crypto.threshold import (
     CeremonyError,
     Trustee,
     combine,
@@ -28,7 +28,7 @@ from evlab.crypto.threshold import (
     verify_decryption_share,
 )
 
-G = get_group("EVLAB-2048-256-V1")
+G = get_group("CHUNAVIQ-2048-256-V1")
 
 
 @pytest.fixture(scope="module")
@@ -108,7 +108,7 @@ def test_issuer_sees_only_blinded_value(signer):
     blinded, state = blind(signer.public, msg)
     bsig = signer.sign_blinded(blinded)
     sig = unblind(signer.public, state, bsig)
-    from evlab.crypto.blind import fdh
+    from chunaviq.crypto.blind import fdh
 
     assert blinded != fdh(signer.public.n, msg) and bsig != sig  # issuer's view differs from the credential
 

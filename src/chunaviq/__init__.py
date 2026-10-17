@@ -1,4 +1,4 @@
-"""verifiable-election-lab: research prototype of an end-to-end verifiable,
+"""chunaviq: research prototype of an end-to-end verifiable,
 secret-ballot online election. Synthetic data only. Not certified, not
 authorised, and not suitable for any binding election. See README.md."""
 

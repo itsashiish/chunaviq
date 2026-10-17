@@ -54,7 +54,7 @@ def is_probable_prime(n: int, rounds: int = 40) -> bool:
 
 def _expand(seed: bytes, label: bytes, nbits: int) -> int:
     nbytes = (nbits + 7) // 8
-    out = hashlib.shake_256(b"evlab/v1/group-derivation\x00" + seed + b"\x00" + label).digest(nbytes)
+    out = hashlib.shake_256(b"chunaviq/v1/group-derivation\x00" + seed + b"\x00" + label).digest(nbytes)
     return int.from_bytes(out, "big") >> (nbytes * 8 - nbits)
 
 

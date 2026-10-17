@@ -10,7 +10,7 @@ Out of scope: the residual risks already documented in `docs/threat-model.md` (c
 
 ## Reporting
 
-Use **GitHub private vulnerability reporting** (Security tab → "Report a vulnerability"). Do not open a public issue or pull request for an exploitable flaw.
+While the repository is private, report directly to the maintainer. Once it is public, use **GitHub private vulnerability reporting** (Security tab → "Report a vulnerability"). Never open a public issue or pull request for an exploitable flaw.
 
 Please include: affected commit, the invariant you broke (`spec/invariants.md`), and a minimal reproduction using **synthetic data only** — ideally a failing pytest.
 

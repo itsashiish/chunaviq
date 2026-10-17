@@ -15,9 +15,9 @@ import shutil
 
 import pytest
 
-from evlab.crypto.elgamal import Ciphertext
-from evlab.crypto.encoding import to_hex
-from evlab_verify import verify_record
+from chunaviq.crypto.elgamal import Ciphertext
+from chunaviq.crypto.encoding import to_hex
+from chunaviq_verify import verify_record
 from harness import copy_record, load_entries, resign_checkpoints, write_entries
 
 

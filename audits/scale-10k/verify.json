@@ -7,7 +7,7 @@
       "title": "Entries are canonical and contiguously numbered"
     },
     {
-      "detail": "417637e571b783db9a401124d41a56828fc090578fb0e8162f88e8aa46fe13e0",
+      "detail": "cf73bb444f2d5bf900340518c1efb2e42ba03d3fb700e5eccd942d24d1695639",
       "id": "manifest.hash",
       "status": "PASS",
       "title": "Manifest hash matches manifest content"
@@ -19,7 +19,7 @@
       "title": "Manifest signed by the election officer key it declares"
     },
     {
-      "detail": "expected 417637e571b783db9a401124d41a56828fc090578fb0e8162f88e8aa46fe13e0",
+      "detail": "expected cf73bb444f2d5bf900340518c1efb2e42ba03d3fb700e5eccd942d24d1695639",
       "id": "manifest.pinned",
       "status": "PASS",
       "title": "Manifest hash equals the independently obtained value"
@@ -31,7 +31,7 @@
       "title": "Software digest equals the audited release"
     },
     {
-      "detail": "EVLAB-2048-256-V1",
+      "detail": "CHUNAVIQ-2048-256-V1",
       "id": "group.approved",
       "status": "PASS",
       "title": "Election group is an approved parameter set"
@@ -154,8 +154,8 @@
   "facts": {
     "election_id": "SYN-2026-GE-001",
     "entries": 6882,
-    "final_root": "93b13ad37d4d3647f038ad9e02efb454f69e074d1c3b27f67060fe347f5f9441",
-    "manifest_hash": "417637e571b783db9a401124d41a56828fc090578fb0e8162f88e8aa46fe13e0",
+    "final_root": "3c8fcf9e1a1bef009046cdc51d48aaf3bf83216c505af1e3bfc7d8613bb5395f",
+    "manifest_hash": "cf73bb444f2d5bf900340518c1efb2e42ba03d3fb700e5eccd942d24d1695639",
     "notice": "SYNTHETIC RESEARCH ELECTION. All voters, candidates, parties and results are artificial. This record has no legal effect and was not produced under the authority of the Election Commission of India or any State Election Commission.",
     "rejections_by_reason": {
       "BAD_CREDENTIAL": 2,
@@ -165,8 +165,8 @@
       "OUTSIDE_VOTING_WINDOW": 1
     },
     "software": {
-      "name": "verifiable-election-lab",
-      "source_digest": "56446a4730ef16e0a055c9c9084c8ec40af46c81c1f1ff3318f80fd0f01e0a33",
+      "name": "chunaviq",
+      "source_digest": "88b1000fbcce8b25105eeb54b38e397a8babee49bdfebb9b30d6c4d57393cae3",
       "version": "0.1.0"
     },
     "title": "Synthetic Assembly General Election (research simulation)",

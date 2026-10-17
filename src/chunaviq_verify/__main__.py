@@ -1,4 +1,4 @@
-"""python -m evlab_verify RECORD_DIR [options]  -- exit code 0 only if VERIFIED."""
+"""python -m chunaviq_verify RECORD_DIR [options]  -- exit code 0 only if VERIFIED."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from .verifier import verify_record
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="evlab-verify", description="Independently verify an evlab election record.")
+    ap = argparse.ArgumentParser(prog="chunaviq-verify", description="Independently verify an chunaviq election record.")
     ap.add_argument("record", help="directory containing entries.jsonl and checkpoints.jsonl")
     ap.add_argument("--expect-manifest-hash", help="manifest hash obtained out-of-band from the authority")
     ap.add_argument("--expect-source-digest", help="source digest of the audited software release")

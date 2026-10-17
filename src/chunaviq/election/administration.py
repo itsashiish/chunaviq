@@ -36,7 +36,7 @@ from .board import Board
 from .clock import utc
 from .manifest import NOTA_ID, manifest_hash
 
-log = logging.getLogger("evlab.administration")
+log = logging.getLogger("chunaviq.administration")
 
 
 class AdministrationError(Exception):

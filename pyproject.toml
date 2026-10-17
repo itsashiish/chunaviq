@@ -3,7 +3,7 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "verifiable-election-lab"
+name = "chunaviq"
 version = "0.1.0"
 description = "Research prototype of an end-to-end verifiable, secret-ballot online election, with an independent verifier. Synthetic data only; not for binding elections."
 readme = "README.md"
@@ -16,8 +16,8 @@ fast = ["gmpy2>=2.1"]
 dev = ["pytest>=8", "hypothesis>=6.100", "ruff>=0.5"]
 
 [project.scripts]
-evlab = "evlab.cli:main"
-evlab-verify = "evlab_verify.__main__:main"
+chunaviq = "chunaviq.cli:main"
+chunaviq-verify = "chunaviq_verify.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

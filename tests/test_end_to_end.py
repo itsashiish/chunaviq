@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from evlab.crypto import params
-from evlab.election.simulate import SimConfig, run
-from evlab.report import render
-from evlab_verify import verify_record
-from evlab_verify.groups import APPROVED_GROUPS
-from evlab_verify.vmath import rederive
+from chunaviq.crypto import params
+from chunaviq.election.simulate import SimConfig, run
+from chunaviq.report import render
+from chunaviq_verify import verify_record
+from chunaviq_verify.groups import APPROVED_GROUPS
+from chunaviq_verify.vmath import rederive
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -58,17 +58,17 @@ def test_tally_survives_unavailable_trustee(sim):
 
 # ------------------------------------------------------------------ independence
 def test_verifier_shares_no_code_with_election_package():
-    for f in (ROOT / "src" / "evlab_verify").rglob("*.py"):
+    for f in (ROOT / "src" / "chunaviq_verify").rglob("*.py"):
         tree = ast.parse(f.read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module:
-                assert not node.module.split(".")[0] == "evlab", f"{f.name} imports {node.module}"
+                assert not node.module.split(".")[0] == "chunaviq", f"{f.name} imports {node.module}"
             if isinstance(node, ast.Import):
-                assert all(a.name.split(".")[0] != "evlab" for a in node.names), f.name
+                assert all(a.name.split(".")[0] != "chunaviq" for a in node.names), f.name
 
 
 def test_verifier_group_constants_match_election_constants():
-    a = APPROVED_GROUPS["EVLAB-2048-256-V1"]
+    a = APPROVED_GROUPS["CHUNAVIQ-2048-256-V1"]
     assert (a["p"], a["q"], a["g"]) == (params.P_2048, params.Q_2048, params.G_2048)
     b = APPROVED_GROUPS["TEST-INSECURE-512-160"]
     assert (b["p"], b["q"], b["g"]) == (params.P_TEST, params.Q_TEST, params.G_TEST)
@@ -83,7 +83,7 @@ def test_groups_rederive_from_public_seed_independently(name):
 # ------------------------------------------------------------------ scale (slow)
 @pytest.mark.slow
 def test_scale_10000_voters(tmp_path):
-    voters = int(os.environ.get("EVLAB_SCALE_VOTERS", "10000"))
+    voters = int(os.environ.get("CHUNAVIQ_SCALE_VOTERS", "10000"))
     s = run(tmp_path / "scale", SimConfig(voters=voters))
     assert s["eligible_voters"] == voters
     assert all(v.startswith("rejected") for v in s["attacks"].values())

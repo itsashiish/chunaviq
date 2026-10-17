@@ -1,6 +1,6 @@
-"""Independent verifier for an evlab election record.
+"""Independent verifier for an chunaviq election record.
 
-    python -m evlab_verify RECORD_DIR [--expect-manifest-hash H] [--json OUT]
+    python -m chunaviq_verify RECORD_DIR [--expect-manifest-hash H] [--json OUT]
 
 Reads only the public record (entries.jsonl, checkpoints.jsonl). Produces a
 list of named checks; the record is VERIFIED only if every check passes.

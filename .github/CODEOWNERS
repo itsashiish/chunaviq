@@ -2,7 +2,7 @@
 # requires it). Replace @OWNER with real maintainers; scripts/setup-github.sh
 # substitutes the repository owner automatically.
 *                         @OWNER
-/src/evlab/crypto/        @OWNER
-/src/evlab_verify/        @OWNER
+/src/chunaviq/crypto/        @OWNER
+/src/chunaviq_verify/        @OWNER
 /spec/                    @OWNER
 /.github/                 @OWNER

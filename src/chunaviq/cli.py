@@ -1,9 +1,9 @@
-"""evlab command line.
+"""chunaviq command line.
 
-evlab simulate OUT [--voters N ...]   run a full synthetic election
-evlab verify RECORD [...]             delegate to the independent verifier
-evlab report REPORT.json OUT.html     render the observer report
-evlab check-group                     re-derive the group from its public seed
+chunaviq simulate OUT [--voters N ...]   run a full synthetic election
+chunaviq verify RECORD [...]             delegate to the independent verifier
+chunaviq report REPORT.json OUT.html     render the observer report
+chunaviq check-group                     re-derive the group from its public seed
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="evlab")
+    ap = argparse.ArgumentParser(prog="chunaviq")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("simulate", help="run a complete synthetic election")
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--no-attacks", action="store_true")
     s.add_argument("--test-group", action="store_true", help="use the INSECURE 512-bit test group (fast; tests only)")
 
-    v = sub.add_parser("verify", help="independently verify a record (evlab_verify)")
+    v = sub.add_parser("verify", help="independently verify a record (chunaviq_verify)")
     v.add_argument("rest", nargs=argparse.REMAINDER)
 
     r = sub.add_parser("report", help="render an observer HTML report from a verifier JSON report")
@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
             seed=a.seed,
             rsa_bits=a.rsa_bits,
             inject_attacks=not a.no_attacks,
-            group="TEST-INSECURE-512-160" if a.test_group else "EVLAB-2048-256-V1",
+            group="TEST-INSECURE-512-160" if a.test_group else "CHUNAVIQ-2048-256-V1",
         )
         if a.workers:
             cfg.workers = a.workers
@@ -70,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if failed else 0
 
     if a.cmd == "verify":
-        from evlab_verify.__main__ import main as vmain
+        from chunaviq_verify.__main__ import main as vmain
 
         return vmain(a.rest)
 

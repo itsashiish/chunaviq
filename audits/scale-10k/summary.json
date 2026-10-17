@@ -21,7 +21,7 @@
     "constituencies": 5,
     "durable": true,
     "election_id": "SYN-2026-GE-001",
-    "group": "EVLAB-2048-256-V1",
+    "group": "CHUNAVIQ-2048-256-V1",
     "inject_attacks": true,
     "rsa_bits": 3072,
     "seed": 2026,
@@ -33,8 +33,8 @@
   },
   "credentials_issued": 6837,
   "eligible_voters": 10000,
-  "final_checkpoint": "93b13ad37d4d3647f038ad9e02efb454f69e074d1c3b27f67060fe347f5f9441",
-  "manifest_hash": "417637e571b783db9a401124d41a56828fc090578fb0e8162f88e8aa46fe13e0",
+  "final_checkpoint": "3c8fcf9e1a1bef009046cdc51d48aaf3bf83216c505af1e3bfc7d8613bb5395f",
+  "manifest_hash": "cf73bb444f2d5bf900340518c1efb2e42ba03d3fb700e5eccd942d24d1695639",
   "reconciliation": {
     "board_ballots": 6837,
     "consistent": true,
@@ -76,12 +76,12 @@
     }
   },
   "timings": {
-    "acceptance_s": 12.18,
-    "client_encryption_s": 82.63,
-    "credential_issuance_s": 35.15,
-    "key_ceremony_s": 0.27,
-    "server_verification_s": 126.55,
-    "tally_s": 2.75,
-    "total_s": 260.93
+    "acceptance_s": 11.78,
+    "client_encryption_s": 84.5,
+    "credential_issuance_s": 38.07,
+    "key_ceremony_s": 0.24,
+    "server_verification_s": 122.24,
+    "tally_s": 2.8,
+    "total_s": 261.22
   }
 }

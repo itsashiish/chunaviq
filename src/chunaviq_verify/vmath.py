@@ -1,6 +1,6 @@
 """Primitive operations for the independent verifier.
 
-INDEPENDENCE RULE: nothing in evlab_verify may import from the `evlab`
+INDEPENDENCE RULE: nothing in chunaviq_verify may import from the `chunaviq`
 package (enforced by tests/test_verifier_independence.py). Everything here is
 re-implemented from spec/protocol.md and spec/record-format.md so that a bug in
 the election code is not silently shared by the code that checks it.
@@ -51,7 +51,7 @@ def _item(x) -> bytes:
 
 
 def challenge(q: int, domain: str, *items) -> int:
-    data = b"evlab/v1/" + domain.encode() + b"\x00" + _item(list(items))
+    data = b"chunaviq/v1/" + domain.encode() + b"\x00" + _item(list(items))
     return int.from_bytes(hashlib.sha256(data).digest(), "big") % q
 
 
@@ -108,7 +108,7 @@ def rsa_fdh_ok(n: int, e: int, message: bytes, sig: int) -> bool:
     if not 0 < sig < n:
         return False
     k = (n.bit_length() + 7) // 8
-    seed, out, ctr = b"evlab/v1/credential-fdh\x00" + message, b"", 0
+    seed, out, ctr = b"chunaviq/v1/credential-fdh\x00" + message, b"", 0
     while len(out) < k - 1:
         out += hashlib.sha256(seed + ctr.to_bytes(4, "big")).digest()
         ctr += 1
@@ -121,7 +121,7 @@ def ed_ok(body: dict, pub_hex: str, role: str) -> bool:
         if body.get("signer") != role:
             return False
         unsigned = {k: v for k, v in body.items() if k != "signature"}
-        Ed25519PublicKey.from_public_bytes(bytes.fromhex(pub_hex)).verify(bytes.fromhex(body["signature"]), b"evlab/v1/signed-body\x00" + cjson(unsigned))
+        Ed25519PublicKey.from_public_bytes(bytes.fromhex(pub_hex)).verify(bytes.fromhex(body["signature"]), b"chunaviq/v1/signed-body\x00" + cjson(unsigned))
         return True
     except (InvalidSignature, ValueError, KeyError, TypeError, AttributeError):
         return False
@@ -233,7 +233,7 @@ def probable_prime(n: int, rounds: int = 32) -> bool:
 def rederive(seed: str, pbits: int, qbits: int) -> tuple[int, int, int]:
     def ex(label: bytes, nbits: int) -> int:
         nb = (nbits + 7) // 8
-        o = hashlib.shake_256(b"evlab/v1/group-derivation\x00" + seed.encode() + b"\x00" + label).digest(nb)
+        o = hashlib.shake_256(b"chunaviq/v1/group-derivation\x00" + seed.encode() + b"\x00" + label).digest(nb)
         return int.from_bytes(o, "big") >> (nb * 8 - nbits)
 
     q = ex(b"q", qbits) | (1 << (qbits - 1)) | 1

@@ -29,7 +29,7 @@ from .ballot import BallotRejected, check_ballot, tracking_code
 from .board import Board
 from .clock import utc
 
-log = logging.getLogger("evlab.ballotbox")
+log = logging.getLogger("chunaviq.ballotbox")
 
 
 class BallotBox:

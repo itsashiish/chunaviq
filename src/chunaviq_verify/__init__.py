@@ -1,4 +1,4 @@
-"""Independent verifier for evlab election records (shares no code with `evlab`)."""
+"""Independent verifier for chunaviq election records (shares no code with `chunaviq`)."""
 
 from .verifier import verify_receipt, verify_record
 

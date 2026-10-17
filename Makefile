@@ -19,12 +19,12 @@ check-group:
 	python tools/gen_group.py --check
 
 demo:
-	rm -rf run && evlab simulate run --voters 1000 --constituencies 3 && \
-	evlab verify run/record --expect-manifest-hash $$(python -c "import json;print(json.load(open('run/summary.json'))['manifest_hash'])") --json run/verify.json; \
-	evlab report run/verify.json run/observer-report.html && echo "open run/observer-report.html"
+	rm -rf run && chunaviq simulate run --voters 1000 --constituencies 3 && \
+	chunaviq verify run/record --expect-manifest-hash $$(python -c "import json;print(json.load(open('run/summary.json'))['manifest_hash'])") --json run/verify.json; \
+	chunaviq report run/verify.json run/observer-report.html && echo "open run/observer-report.html"
 
 site:
-	evlab report audits/scale-10k/verify.json site/report/index.html
+	chunaviq report audits/scale-10k/verify.json site/report/index.html
 
 deploy: site
 	vercel deploy --prod --yes

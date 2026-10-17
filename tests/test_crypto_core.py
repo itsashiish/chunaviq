@@ -4,11 +4,11 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from evlab.crypto.elgamal import Ciphertext, PublicKey, add, dlog_bounded
-from evlab.crypto.encoding import _encode_item, from_hex, hash_to_scalar, to_hex
-from evlab.crypto.group import FixedBase, get_group
-from evlab.crypto.primes import is_probable_prime
-from evlab.crypto.proofs import (
+from chunaviq.crypto.elgamal import Ciphertext, PublicKey, add, dlog_bounded
+from chunaviq.crypto.encoding import _encode_item, from_hex, hash_to_scalar, to_hex
+from chunaviq.crypto.group import FixedBase, get_group
+from chunaviq.crypto.primes import is_probable_prime
+from chunaviq.crypto.proofs import (
     ChaumPedersenProof,
     DisjunctiveProof,
     SchnorrProof,
@@ -20,7 +20,7 @@ from evlab.crypto.proofs import (
     schnorr_verify,
 )
 
-SECURE = get_group("EVLAB-2048-256-V1")
+SECURE = get_group("CHUNAVIQ-2048-256-V1")
 TEST = get_group("TEST-INSECURE-512-160")
 
 

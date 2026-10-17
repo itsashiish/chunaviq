@@ -25,7 +25,7 @@ from ..crypto.signing import RoleKey
 from .clock import hour_bucket
 from .roll import SyntheticVoter
 
-log = logging.getLogger("evlab.eligibility")
+log = logging.getLogger("chunaviq.eligibility")
 
 MAX_FAILED_AUTH = 5
 
@@ -37,7 +37,7 @@ class EligibilityError(Exception):
 
 
 def participation_commitment(election_id: str, voter_id: str, salt: bytes) -> str:
-    return hashlib.sha256(b"evlab/v1/participation\x00" + election_id.encode() + b"\x00" + voter_id.encode() + b"\x00" + salt).hexdigest()
+    return hashlib.sha256(b"chunaviq/v1/participation\x00" + election_id.encode() + b"\x00" + voter_id.encode() + b"\x00" + salt).hexdigest()
 
 
 class EligibilityAuthority:

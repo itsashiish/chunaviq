@@ -20,7 +20,7 @@ PATTERNS = {
     "mobile-like": re.compile(r"(?<![\w-])(?:\+91[ -]?)?[6-9]\d{9}(?![\w-])"),
 }
 SKIP_SUFFIXES = {".png", ".jpg", ".pdf", ".zip", ".gz", ".db"}
-SKIP_FILES = {"src/evlab/crypto/params.py", "src/evlab_verify/groups.py", "requirements/dev.txt", "requirements/runtime.txt"}
+SKIP_FILES = {"src/chunaviq/crypto/params.py", "src/chunaviq_verify/groups.py", "requirements/dev.txt", "requirements/runtime.txt"}
 
 
 def files(args: list[str]) -> list[Path]:

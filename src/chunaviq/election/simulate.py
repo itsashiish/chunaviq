@@ -44,7 +44,7 @@ from .eligibility import EligibilityAuthority, EligibilityError
 from .manifest import build_manifest
 from .roll import make_constituencies, make_roll, split_eligible
 
-log = logging.getLogger("evlab.simulate")
+log = logging.getLogger("chunaviq.simulate")
 
 
 @dataclass
@@ -56,7 +56,7 @@ class SimConfig:
     trustees: int = 5
     threshold: int = 3
     unavailable_trustees: int = 1  # tally must still succeed with n - this >= k
-    group: str = "EVLAB-2048-256-V1"
+    group: str = "CHUNAVIQ-2048-256-V1"
     rsa_bits: int = 3072
     seed: int = 2026
     benaloh_audit_rate: float = 0.02

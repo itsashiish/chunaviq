@@ -1,4 +1,4 @@
-# Election record format — `evlab-record/1`
+# Election record format — `chunaviq-record/1`
 
 The public election record is a directory with two files. It contains no voter identifiers, no authentication data, no IP addresses and no fine-grained timestamps.
 
@@ -23,7 +23,7 @@ One entry per line, each line the **canonical JSON** of the entry:
 
 ### Signed bodies
 
-Every body except `ballot` is signed: `body.signer` is the role name and `body.signature` is a hex Ed25519 signature over `"evlab/v1/signed-body\0" ‖ canonical_json(body without "signature")`. Role keys are declared in the manifest (`keys.officer`, `keys.board`, `keys.eligibility`, `trustees.members[].public_key`).
+Every body except `ballot` is signed: `body.signer` is the role name and `body.signature` is a hex Ed25519 signature over `"chunaviq/v1/signed-body\0" ‖ canonical_json(body without "signature")`. Role keys are declared in the manifest (`keys.officer`, `keys.board`, `keys.eligibility`, `trustees.members[].public_key`).
 
 The manifest declares its own officer key, so a record is only as authentic as the channel the manifest hash came from. Verifiers should obtain the manifest hash out-of-band and pass `--expect-manifest-hash`.
 
@@ -36,7 +36,7 @@ The manifest declares its own officer key, so a record is only as authentic as t
 * **joint_key** — `{joint_public_key}`.
 * **issuer_keys** — `{election_id, issuer_keys: {constituency: {n, e}}}`.
 * **ballot** — `{tracking_code, ballot}`; `tracking_code = SHA-256(canonical_json(ballot))`; ballot schema in `spec/protocol.md` §6. Exact schema at every nesting level.
-* **participation_summary** — `{election_id, constituencies: {id: {eligible, credentials_issued, commitments[sorted]}}}`; commitment = `SHA-256("evlab/v1/participation\0" ‖ election_id ‖ 0 ‖ voter_id ‖ 0 ‖ salt)`; the voter holds the salt, the authority keeps it privately.
+* **participation_summary** — `{election_id, constituencies: {id: {eligible, credentials_issued, commitments[sorted]}}}`; commitment = `SHA-256("chunaviq/v1/participation\0" ‖ election_id ‖ 0 ‖ voter_id ‖ 0 ‖ salt)`; the voter holds the salt, the authority keeps it privately.
 * **aggregate** — `{constituency, ballot_count, aggregates[{option_id, ciphertext}]}`.
 * **decryption_shares** — `{constituency, index, shares[{option_id, share, proof{a,b,v}}]}`.
 * **result** — `{constituency, quorum[], ballot_count, counts[{option_id, votes}], winner, tied[], nota_exceeds_winner}`.
@@ -60,4 +60,4 @@ Signed tree heads by the `board` role, in increasing `tree_size`:
 {"tracking_code": "...", "seq": 812, "entry_sha256": "...", "tree_size": 6803, "root": "...", "inclusion_path": ["<hex>", ...]}
 ```
 
-Checked by `evlab_verify.verify_receipt(record, receipt)`: the entry at `seq` is a ballot with that tracking code, the checkpoint with that size and root is validly signed, and the inclusion path verifies (RFC 9162 §2.1.3).
+Checked by `chunaviq_verify.verify_receipt(record, receipt)`: the entry at `seq` is a ballot with that tracking code, the checkpoint with that size and root is validly signed, and the inclusion path verifies (RFC 9162 §2.1.3).

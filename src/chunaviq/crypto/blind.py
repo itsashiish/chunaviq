@@ -30,7 +30,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from .encoding import from_hex, to_hex
 from .group import powmod
 
-FDH_DOMAIN = b"evlab/v1/credential-fdh\x00"
+FDH_DOMAIN = b"chunaviq/v1/credential-fdh\x00"
 
 
 def _mgf1_sha256(seed: bytes, length: int) -> bytes:

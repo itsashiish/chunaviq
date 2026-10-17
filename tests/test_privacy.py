@@ -4,7 +4,7 @@ import json
 import logging
 import sqlite3
 
-from evlab.crypto.threshold import Trustee
+from chunaviq.crypto.threshold import Trustee
 from harness import Election, load_entries
 
 
@@ -51,7 +51,7 @@ def test_participation_commitments_are_not_in_issuance_order(finished):
 
 
 def test_logs_carry_no_identity(tmp_path, caplog):
-    caplog.set_level(logging.DEBUG, logger="evlab")
+    caplog.set_level(logging.DEBUG, logger="chunaviq")
     e = Election(tmp_path)
     d = e.credentialed(0)
     e.box.submit(d.prepare("C1").ballot)

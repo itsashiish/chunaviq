@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from . import params
 
-try:  # Optional GMP acceleration (pip install "verifiable-election-lab[fast]").
+try:  # Optional GMP acceleration (pip install "chunaviq[fast]").
     import gmpy2 as _gmpy2
 
     def powmod(b: int, e: int, m: int) -> int:
@@ -115,7 +115,7 @@ _CACHE: dict[str, Group] = {}
 
 def get_group(name: str) -> Group:
     if name not in _CACHE:
-        if name == "EVLAB-2048-256-V1":
+        if name == "CHUNAVIQ-2048-256-V1":
             _CACHE[name] = _make(name, params.P_2048, params.Q_2048, params.G_2048, True)
         elif name == "TEST-INSECURE-512-160":
             _CACHE[name] = _make(name, params.P_TEST, params.Q_TEST, params.G_TEST, False)
@@ -124,5 +124,5 @@ def get_group(name: str) -> Group:
     return _CACHE[name]
 
 
-DEFAULT_GROUP = "EVLAB-2048-256-V1"
+DEFAULT_GROUP = "CHUNAVIQ-2048-256-V1"
 TEST_GROUP = "TEST-INSECURE-512-160"

@@ -6,15 +6,15 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from evlab.crypto.blind import blind, credential_message, unblind
-from evlab.crypto.encoding import from_hex, to_hex
-from evlab.crypto.signing import RoleKey
-from evlab.election.administration import AdministrationError
-from evlab.election.ballot import BallotRejected
-from evlab.election.ballotbox import BallotBox
-from evlab.election.board import Board, BoardError
-from evlab.election.eligibility import EligibilityError
-from evlab_verify import verify_record
+from chunaviq.crypto.blind import blind, credential_message, unblind
+from chunaviq.crypto.encoding import from_hex, to_hex
+from chunaviq.crypto.signing import RoleKey
+from chunaviq.election.administration import AdministrationError
+from chunaviq.election.ballot import BallotRejected
+from chunaviq.election.ballotbox import BallotBox
+from chunaviq.election.board import Board, BoardError
+from chunaviq.election.eligibility import EligibilityError
+from chunaviq_verify import verify_record
 from harness import CLOSES, Election
 
 THREADS = 16
@@ -121,7 +121,7 @@ def test_crash_between_board_append_and_index_commit(election):
     the board but before the index committed, recovery marks the token used."""
     d = election.credentialed(0)
     b = d.prepare("C1").ballot
-    from evlab.election.ballot import tracking_code
+    from chunaviq.election.ballot import tracking_code
 
     election.board.append("ballot", {"tracking_code": tracking_code(b), "ballot": b})  # "crash" before index
     assert not election.box.reconcile()["consistent"]

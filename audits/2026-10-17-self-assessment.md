@@ -1,13 +1,13 @@
 # Self-assessment — 2026-10-17 (v0.1.0)
 
 **Type:** internal review by the authors. **Not** an independent audit; it does not satisfy the stage-04 exit criterion.
-**Source digest:** `56446a4730ef16e0a055c9c9084c8ec40af46c81c1f1ff3318f80fd0f01e0a33`
+**Source digest:** `88b1000fbcce8b25105eeb54b38e397a8babee49bdfebb9b30d6c4d57393cae3`
 
 ## Findings
 
 | ID | Severity | Status | Finding | Resolution / plan |
 |---|---|---|---|---|
-| F-001 | High | **Fixed** | Ballot box and verifier accepted unknown fields inside nested ballot objects (ciphertext, proof, limit proof). A voter could embed a marker (e.g. `"marker": "voter-1234"`) and prove to a vote buyer which public ballot is theirs. **Found by the property-based fuzzer** (`test_fuzzed_ballots_never_crash_and_never_accepted`). | Exact schemas at every nesting level in `ballot.py` and, independently, in `evlab_verify`. Regression: `test_marked_ballot_rejected` (5 positions). |
+| F-001 | High | **Fixed** | Ballot box and verifier accepted unknown fields inside nested ballot objects (ciphertext, proof, limit proof). A voter could embed a marker (e.g. `"marker": "voter-1234"`) and prove to a vote buyer which public ballot is theirs. **Found by the property-based fuzzer** (`test_fuzzed_ballots_never_crash_and_never_accepted`). | Exact schemas at every nesting level in `ballot.py` and, independently, in `chunaviq_verify`. Regression: `test_marked_ballot_rejected` (5 positions). |
 | F-002 | Medium | **Fixed** | Key ceremony destroyed each trustee's polynomial coefficients as soon as that trustee finished receiving shares, before later trustees had received theirs. Integrity was not at risk (Feldman checks failed closed) but the ceremony could not complete. Caught by the first end-to-end smoke test. | Two-phase ceremony: distribute and verify all shares, then finalise and destroy. |
 | F-003 | High | Open (design) | The eligibility authority can mint credentials for registered voters who abstain and cast ballots with them (threat R2). The participation check `ballots ≤ issued ≤ eligible` cannot detect this. | Plan: multi-authority issuance; participation-sampling audit (A3 in `docs/audit-procedures.md`). |
 | F-004 | High | Open (inherent) | No coercion resistance or receipt-freeness: a voter can reveal device nonces; a coercer can watch the voter vote. | Documented residual risk; the reason the project does not recommend remote voting for binding elections. |
@@ -30,12 +30,12 @@
 | Stage | 6,837 ballots (10,000 eligible) |
 |---|---|
 | Key ceremony (5 trustees, k = 3) | 0.3 s |
-| Credential issuance (RSA-3072 blind signing) | 35 s |
-| Client-side encryption + proofs (5 options) | 83 s (≈ 24 ms per ballot per core) |
-| Server-side proof verification | 127 s (≈ 37 ms per ballot per core) |
+| Credential issuance (RSA-3072 blind signing) | 38 s |
+| Client-side encryption + proofs (5 options) | 85 s (≈ 25 ms per ballot per core) |
+| Server-side proof verification | 122 s (≈ 36 ms per ballot per core) |
 | Sequential acceptance + board append (fsync each) | 12 s |
 | Threshold tally | 2.8 s |
-| **Independent verification of the whole record** | **113 s** |
+| **Independent verification of the whole record** | **111 s** |
 | Public record size | 128 MB (6,882 entries) |
 
-Server verification throughput (~54 ballots/s on 2 cores) is the bottleneck and scales with cores, because checks run outside the acceptance lock.
+Server verification throughput (~56 ballots/s on 2 cores) is the bottleneck and scales with cores, because checks run outside the acceptance lock.

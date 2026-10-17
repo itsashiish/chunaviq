@@ -1,6 +1,6 @@
-# Protocol specification — evlab v1
+# Protocol specification — ChunavIQ v1
 
-Status: **research draft, not independently reviewed.** Normative for the code in `src/evlab` and the independent verifier in `src/evlab_verify`. Where this document and the code disagree, the code has a bug or this document does; both are findings.
+Status: **research draft, not independently reviewed.** Normative for the code in `src/chunaviq` and the independent verifier in `src/chunaviq_verify`. Where this document and the code disagree, the code has a bug or this document does; both are findings.
 
 ## 1. Goals and non-goals
 
@@ -20,9 +20,9 @@ Status: **research draft, not independently reviewed.** Normative for the code i
 
 Schnorr group: primes `p` (2048-bit) and `q` (256-bit) with `q | p − 1`, generator `g` of the order-`q` subgroup `G_q`.
 
-Parameters are derived deterministically from the public seed `"evlab election group v1 / research use / 2048-256"` (`src/evlab/crypto/primes.py::derive_group`, re-implemented in `src/evlab_verify/vmath.py::rederive`):
+Parameters are derived deterministically from the public seed `"chunaviq election group v1 / research use / 2048-256"` (`src/chunaviq/crypto/primes.py::derive_group`, re-implemented in `src/chunaviq_verify/vmath.py::rederive`):
 
-1. `q` = smallest probable prime ≥ `SHAKE256("evlab/v1/group-derivation\0" ‖ seed ‖ "\0q")` truncated to 256 bits, top and bottom bits set.
+1. `q` = smallest probable prime ≥ `SHAKE256("chunaviq/v1/group-derivation\0" ‖ seed ‖ "\0q")` truncated to 256 bits, top and bottom bits set.
 2. `r` = even integer starting at `lo + (SHAKE256(… "\0r") mod (hi − lo))`, where `[lo, hi]` makes `p = q·r + 1` exactly 2048 bits; incremented by 2 until `p` is prime.
 3. `g = h^r mod p` for the smallest `h ≥ 2` with `g ≠ 1`.
 
@@ -32,7 +32,7 @@ A second group `TEST-INSECURE-512-160` exists for fast tests. The verifier refus
 
 ## 3. Hashing (Fiat–Shamir)
 
-`H(domain, items…) = SHA-256("evlab/v1/" ‖ domain ‖ 0x00 ‖ enc([items…])) mod q`
+`H(domain, items…) = SHA-256("chunaviq/v1/" ‖ domain ‖ 0x00 ‖ enc([items…])) mod q`
 
 `enc` is a type-length-value encoding: integer → `"i" ‖ len32 ‖ big-endian bytes` (zero is one `0x00` byte); string → `"s" ‖ len32 ‖ UTF-8`; list → `"l" ‖ count32 ‖ enc(item)…`. It is injective (property-tested).
 
@@ -53,7 +53,7 @@ Joint key `K = Π_i C_{i,0}`. Public share `K_l = Π_i Π_j C_{i,j}^{l^j} = g^{s
 One RSA key (≥ 3072-bit, e = 65537) per constituency, held by the eligibility authority and published in the signed `issuer_keys` entry.
 
 * Message: `M = election_id ‖ 0x00 ‖ constituency ‖ 0x00 ‖ token` (token: 32 random bytes chosen by the voter's device).
-* `FDH(M) = MGF1-SHA256("evlab/v1/credential-fdh\0" ‖ M, len(n) − 1 bytes)`.
+* `FDH(M) = MGF1-SHA256("chunaviq/v1/credential-fdh\0" ‖ M, len(n) − 1 bytes)`.
 * Device sends `m' = FDH(M)·ρ^e mod n`; authority authenticates the voter, atomically records "issued" for that voter, returns `m'^d mod n`; device unblinds.
 * Valid credential: `σ^e ≡ FDH(M) (mod n)`.
 

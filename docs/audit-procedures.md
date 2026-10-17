@@ -7,11 +7,11 @@ Written for a synthetic or mock election run with this prototype. Each step name
 | # | Step | Evidence |
 |---|---|---|
 | B1 | Tag the release; publish the commit SHA, the wheel/sdist SHA-256 checksums and the build attestation | `release.yml` artifacts |
-| B2 | Publish the **source digest** (`python -c "from evlab.election.manifest import source_digest; print(source_digest())"`) and confirm it equals `manifest.software.source_digest` | Verifier `--expect-source-digest` |
+| B2 | Publish the **source digest** (`python -c "from chunaviq.election.manifest import source_digest; print(source_digest())"`) and confirm it equals `manifest.software.source_digest` | Verifier `--expect-source-digest` |
 | B3 | Publish the **manifest hash** through a second channel (website + press note + signed letter) | Verifier `--expect-manifest-hash` |
-| B4 | Re-derive the group from its seed | `evlab check-group`; test `test_groups_rederive_from_public_seed_independently` |
+| B4 | Re-derive the group from its seed | `chunaviq check-group`; test `test_groups_rederive_from_public_seed_independently` |
 | B5 | Witness the key ceremony (`docs/key-ceremony.md`); confirm every trustee ack is in the record | `ceremony.*` checks |
-| B6 | Run a complete mock election with the frozen release and verify it | `evlab simulate` + `evlab verify` |
+| B6 | Run a complete mock election with the frozen release and verify it | `chunaviq simulate` + `chunaviq verify` |
 | B7 | Test eligibility controls, recovery and incident procedures | `pytest -m "not slow"` |
 
 ## During voting
@@ -31,8 +31,8 @@ Written for a synthetic or mock election run with this prototype. Each step name
 | A2 | Eligibility publishes the participation summary; check `ballots ≤ issued ≤ eligible` per constituency | `reconciliation.participation` |
 | A3 | **Participation sampling (authorised auditor):** draw a random sample of commitments, contact those voters through an independent channel, and confirm they did request a credential. Unexplained commitments are evidence of credential minting (threat R2). | Audit worksheet |
 | A4 | Trustees independently recompute the aggregates before contributing shares | Trustee runs the verifier on the record up to `aggregate` |
-| A5 | Run the independent verifier with both pins; archive the JSON report | `evlab verify … --json` |
-| A6 | Render and publish the observer report with the record, checkpoints, report JSON and software identifiers | `evlab report` |
+| A5 | Run the independent verifier with both pins; archive the JSON report | `chunaviq verify … --json` |
+| A6 | Render and publish the observer report with the record, checkpoints, report JSON and software identifiers | `chunaviq report` |
 | A7 | Publish exceptions: rejected-ballot counts, early close, unavailable trustees, warnings | Observer report |
 
 ## Why there is no risk-limiting audit

@@ -8,15 +8,15 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from evlab.crypto.elgamal import Ciphertext
-from evlab.crypto.encoding import to_hex
-from evlab.crypto.proofs import disjunctive_prove
-from evlab.election.administration import AdministrationError, decide
-from evlab.election.ballot import BallotRejected, encrypt_ballot, selection_context
-from evlab.election.board import BoardError
-from evlab.election.eligibility import EligibilityError
-from evlab.election.manifest import Candidate, Constituency, build_manifest
-from evlab_verify import verify_receipt
+from chunaviq.crypto.elgamal import Ciphertext
+from chunaviq.crypto.encoding import to_hex
+from chunaviq.crypto.proofs import disjunctive_prove
+from chunaviq.election.administration import AdministrationError, decide
+from chunaviq.election.ballot import BallotRejected, encrypt_ballot, selection_context
+from chunaviq.election.board import BoardError
+from chunaviq.election.eligibility import EligibilityError
+from chunaviq.election.manifest import Candidate, Constituency, build_manifest
+from chunaviq_verify import verify_receipt
 from harness import CLOSES, OPENS, Election
 
 
@@ -142,7 +142,7 @@ def test_one_credential_per_voter(election):
 
 def test_participation_commitment_lets_voter_confirm_they_are_counted_as_participating(election):
     d = election.credentialed(4)
-    from evlab.election.eligibility import participation_commitment
+    from chunaviq.election.eligibility import participation_commitment
 
     c = participation_commitment("SYN-TEST", d.voter.voter_id, bytes.fromhex(d.participation_receipt["salt"]))
     s = election.elig.participation_summary()["constituencies"][d.voter.constituency]

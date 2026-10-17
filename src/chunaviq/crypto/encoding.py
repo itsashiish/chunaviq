@@ -16,7 +16,7 @@ import hashlib
 import json
 from typing import Any
 
-DOMAIN_PREFIX = b"evlab/v1/"
+DOMAIN_PREFIX = b"chunaviq/v1/"
 
 
 def canonical_json(obj: Any) -> bytes:

@@ -3,7 +3,7 @@
 ```mermaid
 flowchart LR
   subgraph Voter side
-    D[Voter device<br/>evlab.election.client]
+    D[Voter device<br/>chunaviq.election.client]
   end
   subgraph Separated services
     E[Eligibility authority<br/>roll · auth · blind-signs 1 credential]
@@ -14,7 +14,7 @@ flowchart LR
     O[Election officer<br/>lifecycle · aggregates · results]
   end
   R[(Public record<br/>append-only Merkle log<br/>signed checkpoints)]
-  V[Independent verifier<br/>evlab_verify]
+  V[Independent verifier<br/>chunaviq_verify]
   OBS[Observers / voters]
 
   D -- "identity + blinded token" --> E
@@ -33,18 +33,18 @@ flowchart LR
 
 | Component (blueprint) | Module | Notes |
 |---|---|---|
-| Identity & eligibility service | `evlab/election/eligibility.py` | SQLite roll, salted HMAC auth stand-in, lockout, revocation, one-credential PK, RSA blind signing per constituency |
-| Privacy-preserving ballot protocol | `evlab/crypto/{elgamal,proofs,blind}.py`, `evlab/election/ballot.py` | Exponential ElGamal, CDS 0/1 proofs, CP limit proof, blind credentials |
-| Ballot interface | `evlab/election/client.py` | Simulated device incl. Benaloh challenge. No browser UI yet (see roadmap) |
-| Ballot storage | `evlab/election/ballotbox.py`, `evlab/election/board.py` | Board is authoritative; DB is a rebuildable index |
-| Audit record | `evlab/election/board.py`, `evlab/crypto/merkle.py` | RFC 6962 log, Ed25519 checkpoints, consistency proofs |
-| Key custody | `evlab/crypto/threshold.py`, `evlab/election/administration.py` | Feldman VSS k-of-n; coefficients destroyed after ceremony |
-| Tally engine | `evlab/election/administration.py` | Aggregates only; CP-proven shares; Lagrange combine |
-| Independent verification | `evlab_verify/` | No imports from `evlab`; own constants; re-derives group |
-| Observer interface | `evlab/report.py` | Static, script-free, accessible HTML from the verifier's JSON |
-| Simulation harness | `evlab/election/simulate.py` | Synthetic roll, parallel client/server crypto, injected attacks, ground-truth oracle |
+| Identity & eligibility service | `chunaviq/election/eligibility.py` | SQLite roll, salted HMAC auth stand-in, lockout, revocation, one-credential PK, RSA blind signing per constituency |
+| Privacy-preserving ballot protocol | `chunaviq/crypto/{elgamal,proofs,blind}.py`, `chunaviq/election/ballot.py` | Exponential ElGamal, CDS 0/1 proofs, CP limit proof, blind credentials |
+| Ballot interface | `chunaviq/election/client.py` | Simulated device incl. Benaloh challenge. No browser UI yet (see roadmap) |
+| Ballot storage | `chunaviq/election/ballotbox.py`, `chunaviq/election/board.py` | Board is authoritative; DB is a rebuildable index |
+| Audit record | `chunaviq/election/board.py`, `chunaviq/crypto/merkle.py` | RFC 6962 log, Ed25519 checkpoints, consistency proofs |
+| Key custody | `chunaviq/crypto/threshold.py`, `chunaviq/election/administration.py` | Feldman VSS k-of-n; coefficients destroyed after ceremony |
+| Tally engine | `chunaviq/election/administration.py` | Aggregates only; CP-proven shares; Lagrange combine |
+| Independent verification | `chunaviq_verify/` | No imports from `chunaviq`; own constants; re-derives group |
+| Observer interface | `chunaviq/report.py` | Static, script-free, accessible HTML from the verifier's JSON |
+| Simulation harness | `chunaviq/election/simulate.py` | Synthetic roll, parallel client/server crypto, injected attacks, ground-truth oracle |
 
-The blueprint's `apps/ services/ crypto/` folders map to the Python package layout above (`src/evlab/election` = services, `src/evlab/crypto` = crypto, `src/evlab/report.py` + CLI = apps).
+The blueprint's `apps/ services/ crypto/` folders map to the Python package layout above (`src/chunaviq/election` = services, `src/chunaviq/crypto` = crypto, `src/chunaviq/report.py` + CLI = apps).
 
 ## Data separation
 

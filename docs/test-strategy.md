@@ -14,7 +14,7 @@ The suite checks that the system works **and that it fails safely**. Invariant-t
 | Availability / recovery | `test_concurrency_recovery.py` | Board reload; truncated history refused; forged checkpoint refused; DB loss; crash between append and commit; tally without quorum aborts before publishing; exactly-k tally; backup restore | Load/DoS against a network service |
 | Scale | `test_end_to_end.py::test_scale_10000_voters` (`-m slow`), `audits/scale-10k/` | 10,000 eligible voters, 5 constituencies, full verification | Peak-concurrency load testing of a deployed service |
 | Accessibility | — | The observer report uses semantic tables, `lang`, no colour-only meaning, no scripts | **No voter UI exists yet**, so keyboard/screen-reader/mobile/language testing has nothing to test. Required before any tier-2 pilot. |
-| Independence | `test_end_to_end.py` | Verifier imports nothing from `evlab`; constants match; groups re-derive from seed | A second implementation by another team |
+| Independence | `test_end_to_end.py` | Verifier imports nothing from `chunaviq`; constants match; groups re-derive from seed | A second implementation by another team |
 
 ## Running
 

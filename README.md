@@ -1,8 +1,10 @@
-# verifiable-election-lab
+# ChunavIQ
+
+*Chunav* (चुनाव) means election.
 
 **Research prototype** of an end-to-end verifiable, secret-ballot online election, with an **independent verifier** and an adversarial test suite. Legal and audit scope tailored to **India**.
 
-Live: **https://evlab.oglic.com** (landing page + 10,000-voter observer report)
+Live: **https://chunaviq.oglic.com** (landing page + 10,000-voter observer report)
 
 > ⚠️ **Synthetic data only. Not certified. Not authorised. Not for any binding election.**
 > Only the Election Commission of India (Art. 324) or a State Election Commission (Arts. 243K, 243ZA) can authorise a voting method for a real election. A passing test suite is evidence for researchers, not permission to run an election. See [`docs/legal-scope-india.md`](docs/legal-scope-india.md).
@@ -38,9 +40,9 @@ make demo               # 1,000-voter synthetic election → verify → run/obse
 Run a full-size election and verify it yourself:
 
 ```bash
-evlab simulate out --voters 10000
-evlab verify out/record --expect-manifest-hash "$(python -c "import json;print(json.load(open('out/summary.json'))['manifest_hash'])")" --json out/verify.json
-evlab report out/verify.json out/observer-report.html
+chunaviq simulate out --voters 10000
+chunaviq verify out/record --expect-manifest-hash "$(python -c "import json;print(json.load(open('out/summary.json'))['manifest_hash'])")" --json out/verify.json
+chunaviq report out/verify.json out/observer-report.html
 ```
 
 ## Evidence
@@ -55,10 +57,10 @@ evlab report out/verify.json out/observer-report.html
 
 | Path | Contents |
 |---|---|
-| `src/evlab/crypto/` | Group (seed-derived), ElGamal, ZK proofs, threshold keys, blind credentials, Merkle log, Ed25519 roles |
-| `src/evlab/election/` | Manifest, synthetic roll, eligibility authority, voter device, ballot box, board, administration/tally, simulation |
-| `src/evlab_verify/` | **Independent verifier** — imports nothing from `evlab` |
-| `src/evlab/report.py` | Accessible, script-free observer report |
+| `src/chunaviq/crypto/` | Group (seed-derived), ElGamal, ZK proofs, threshold keys, blind credentials, Merkle log, Ed25519 roles |
+| `src/chunaviq/election/` | Manifest, synthetic roll, eligibility authority, voter device, ballot box, board, administration/tally, simulation |
+| `src/chunaviq_verify/` | **Independent verifier** — imports nothing from `chunaviq` |
+| `src/chunaviq/report.py` | Accessible, script-free observer report |
 | `spec/` | Protocol, record format, invariants |
 | `docs/` | Architecture, threat model, India legal scope, privacy, key ceremony, audit procedures, test strategy, roadmap |
 | `audits/` | Findings, remediation, scale evidence |

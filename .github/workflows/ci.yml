@@ -59,11 +59,11 @@ jobs:
         run: pytest -m "not slow" -q
       - name: End-to-end synthetic election + independent verification
         run: |
-          evlab simulate run --voters 300 --constituencies 3 --rsa-bits 3072
+          chunaviq simulate run --voters 300 --constituencies 3 --rsa-bits 3072
           H=$(python -c "import json;print(json.load(open('run/summary.json'))['manifest_hash'])")
-          D=$(python -c "from evlab.election.manifest import source_digest;print(source_digest())")
-          evlab verify run/record --expect-manifest-hash "$H" --expect-source-digest "$D" --json run/verify.json
-          evlab report run/verify.json run/observer-report.html
+          D=$(python -c "from chunaviq.election.manifest import source_digest;print(source_digest())")
+          chunaviq verify run/record --expect-manifest-hash "$H" --expect-source-digest "$D" --json run/verify.json
+          chunaviq report run/verify.json run/observer-report.html
       - if: matrix.python == '3.13' && matrix.backend == 'gmpy2'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

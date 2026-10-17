@@ -91,7 +91,7 @@ def build_manifest(
     if not 1 <= threshold <= len(trustee_keys):
         raise ValueError("threshold must satisfy 1 <= k <= n")
     return {
-        "spec_version": "evlab-record/1",
+        "spec_version": "chunaviq-record/1",
         "election_id": election_id,
         "title": title,
         "notice": SYNTHETIC_NOTICE,
@@ -104,7 +104,7 @@ def build_manifest(
             "members": [{"index": i + 1, "role": f"trustee-{i + 1}", "public_key": k} for i, k in enumerate(trustee_keys)],
         },
         "keys": {"officer": officer_key, "board": board_key, "eligibility": eligibility_key},
-        "software": {"name": "verifiable-election-lab", "version": software_version, "source_digest": source_digest()},
+        "software": {"name": "chunaviq", "version": software_version, "source_digest": source_digest()},
     }
 
 
