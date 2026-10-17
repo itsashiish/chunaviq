@@ -14,10 +14,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+# Digits that are part of a decimal number (e.g. 2228.333333333334) are not identifiers.
+_NOT_DECIMAL_BEFORE = r"(?<![\w-])(?<!\d\.)"
+_NOT_DECIMAL_AFTER = r"(?![\w-])(?!\.\d)"
 PATTERNS = {
-    "aadhaar-like": re.compile(r"(?<![\w-])[2-9]\d{3}[ ]?\d{4}[ ]?\d{4}(?![\w-])"),
+    "aadhaar-like": re.compile(_NOT_DECIMAL_BEFORE + r"[2-9]\d{3}[ ]?\d{4}[ ]?\d{4}" + _NOT_DECIMAL_AFTER),
     "epic-like": re.compile(r"(?<![A-Za-z0-9])[A-Z]{3}\d{7}(?![A-Za-z0-9])"),
-    "mobile-like": re.compile(r"(?<![\w-])(?:\+91[ -]?)?[6-9]\d{9}(?![\w-])"),
+    "mobile-like": re.compile(_NOT_DECIMAL_BEFORE + r"(?:\+91[ -]?)?[6-9]\d{9}" + _NOT_DECIMAL_AFTER),
 }
 SKIP_SUFFIXES = {".png", ".jpg", ".pdf", ".zip", ".gz", ".db"}
 SKIP_FILES = {"src/chunaviq/crypto/params.py", "src/chunaviq_verify/groups.py", "requirements/dev.txt", "requirements/runtime.txt"}

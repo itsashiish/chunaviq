@@ -278,12 +278,23 @@ def render(m: dict, rows: list[dict], a: dict = ASSUMPTIONS) -> str:
     return "\n".join(L) + "\n"
 
 
+def _rounded(x):
+    """Round floats for the JSON report: 4 significant decimals is far finer than the model's accuracy."""
+    if isinstance(x, float):
+        return round(x, 4) if abs(x) < 1000 else round(x, 1)
+    if isinstance(x, dict):
+        return {k: _rounded(v) for k, v in x.items()}
+    if isinstance(x, list | tuple):
+        return [_rounded(v) for v in x]
+    return x
+
+
 def main() -> int:
     m = measure()
     rows = model(m)
     out = Path("docs/scale")
     out.mkdir(parents=True, exist_ok=True)
-    (out / "capacity.json").write_text(json.dumps({"measured": m, "assumptions": ASSUMPTIONS, "model": rows}, indent=2, default=str))
+    (out / "capacity.json").write_text(json.dumps(_rounded({"measured": m, "assumptions": ASSUMPTIONS, "model": rows}), indent=2, default=str))
     (out / "capacity.md").write_text(render(m, rows))
     print((out / "capacity.md").read_text())
     return 0
