@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     sv.add_argument("rest", nargs=argparse.REMAINDER)
 
     rh = sub.add_parser("rehearse", help="dress rehearsal: an election over HTTP under attack, end to end, with full outputs")
-    rh.add_argument("profile", choices=["smoke", "shard-peak"])
+    rh.add_argument("profile", choices=["smoke", "mini-peak", "shard-peak"])
     rh.add_argument("--out", type=Path, default=None)
     rh.add_argument("--seconds", type=int, default=None, help="load duration (default: profile's)")
     rh.add_argument("--rate", type=float, default=None, help="honest ballots/s (default: profile's, or as close to the design rate as this machine allows)")

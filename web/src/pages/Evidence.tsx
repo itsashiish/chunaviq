@@ -96,6 +96,7 @@ function RehearsalCard({ name, data }: { name: string; data: Rehearsal | null | 
 
 export function Evidence() {
   const smoke = useJson<Rehearsal>("/evidence/rehearsal-smoke.json");
+  const mini = useJson<Rehearsal>("/evidence/rehearsal-mini-peak.json");
   const peak = useJson<Rehearsal>("/evidence/rehearsal-shard-peak.json");
   const cap = useJson<Capacity>("/evidence/capacity.json");
   const rows: [string, string, string][] = [
@@ -121,6 +122,7 @@ export function Evidence() {
         registered attackers, replays, slowloris and idle-connection floods. Then the votes are finalized, mixed, counted and independently verified.
       </p>
       <RehearsalCard name="smoke rehearsal" data={smoke} />
+      <RehearsalCard name="mini-peak rehearsal" data={mini} />
       <RehearsalCard name="shard-peak rehearsal" data={peak} />
       <p>
         A national rehearsal is this, 543 times, on the real infrastructure: constituencies share nothing while voting, so capacity adds up. Network-level

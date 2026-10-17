@@ -1,4 +1,4 @@
-.PHONY: install test deep scale scale-national capacity rehearsal-smoke rehearsal-peak lint demo check-group site deploy web-install web-test web-dev
+.PHONY: install test deep scale scale-mini check-mini rehearsal-mini scale-national capacity rehearsal-smoke rehearsal-peak lint demo check-group site deploy web-install web-test web-dev
 
 install:
 	pip install --require-hashes --no-deps -r requirements/runtime.txt -r requirements/dev.txt && pip install --no-deps --no-build-isolation -e .
@@ -11,6 +11,17 @@ deep:
 
 scale:
 	pytest -m slow -q
+
+# The 10,000-voter end-to-end test at 2,000 voters: revotes, new phones, polling-day voters, attacks, verification, ground truth.
+scale-mini:
+	CHUNAVIQ_SCALE_VOTERS=2000 pytest -m slow -q
+
+# shard-peak in miniature: 16-option ballots, 2 minutes of load in three phases, all seven attack kinds, end to end.
+rehearsal-mini:
+	rm -rf rehearsal/mini-peak && chunaviq rehearse mini-peak --out rehearsal/mini-peak
+
+# Both, about 5-8 minutes on a 16-thread desktop.
+check-mini: scale-mini rehearsal-mini
 
 scale-national:
 	pytest -m scale -q

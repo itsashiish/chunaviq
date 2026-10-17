@@ -1,6 +1,7 @@
 """Dress rehearsal: a real constituency election, run end to end over HTTP, under attack.
 
     chunaviq rehearse smoke        # minutes, any machine (CI runs this)
+    chunaviq rehearse mini-peak    # shard-peak in miniature: 16 options, 2 minutes of load, every attack kind
     chunaviq rehearse shard-peak   # the largest constituency's design rate, as far as this machine allows
 
 What happens, in order, all with the real 2048-bit group and a real clock:
@@ -85,6 +86,14 @@ PROFILES = {
         rate=2.0,
         floods={"junk": 10, "oversize": 2, "unregistered": 10, "bad_proof": 5, "replay": 5, "slowloris": 0.5, "idle_conns": 1},
         mix_batch=256,
+    ),
+    "mini-peak": Profile(
+        "mini-peak",
+        options=16,
+        seconds=120,
+        rate=None,
+        floods={"junk": 60, "oversize": 6, "unregistered": 60, "bad_proof": 12, "replay": 30, "slowloris": 1, "idle_conns": 4},
+        mix_batch=512,
     ),
     "shard-peak": Profile(
         "shard-peak",

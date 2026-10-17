@@ -39,6 +39,7 @@ A real constituency election, end to end, over HTTP, with the 2048-bit group and
 | Profile | Ballot | Load | Attack rates (per second) | Runs where |
 |---|---|---|---|---|
 | `smoke` | 4 options | 90 s at 2 ballots/s | junk 10, oversize 2, unregistered 10, bad proof 5, replay 5, slowloris 0.5, idle 1 | CI on every push; any laptop |
+| `mini-peak` | 16 options | 120 s at the design rate or 70% of this machine's capacity | junk 60, oversize 6, unregistered 60, bad proof 12, replay 30, slowloris 1, idle 4 | `make check-mini` (with the 2,000-voter end-to-end test); ~5–8 min on 16 threads |
 | `shard-peak` | 16 options | 600 s at the largest constituency's design rate (128/s), or 70% of what this machine can verify | junk 300, oversize 30, unregistered 300, bad proof 60, replay 150, slowloris 5, idle 20 | a desktop or server; ~1–2 h on 16 threads |
 
 Pass criteria: every honest ballot recorded (after retries), every receipt on the board, every attack refused, record **VERIFIED**, counts equal ground truth.
