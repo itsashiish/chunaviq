@@ -1,0 +1,244 @@
+{
+  "ballots_on_board": 14542,
+  "config": {
+    "attackers": 20,
+    "botnet": 50,
+    "floods": {
+      "bad_proof": 12,
+      "idle_conns": 4,
+      "junk": 60,
+      "oversize": 6,
+      "replay": 30,
+      "slowloris": 1,
+      "unregistered": 60
+    },
+    "honest_rate_per_s": 128.0,
+    "mix_batch": 512,
+    "name": "mini-peak",
+    "options": 16,
+    "rate": null,
+    "revote_fraction": 0.1,
+    "seconds": 120,
+    "server_workers": 15
+  },
+  "cores_for_design_rate_at_this_cost": 7.9,
+  "design_rate_largest_seat_per_s": 128.0,
+  "every_receipt_is_on_the_board": true,
+  "expensive_checks_run": 14859,
+  "finalization": {
+    "final": 13432,
+    "superseded": 1110
+  },
+  "fraction_of_design_rate": 1.0,
+  "identity_methods": {
+    "aadhaar-face": 3564,
+    "aadhaar-otp": 10615,
+    "pan": 2703
+  },
+  "machine": {
+    "backend": "gmpy2",
+    "cores": 16,
+    "cpu": "x86_64",
+    "os": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+    "python": "3.14.4"
+  },
+  "manifest_hash": "d826e2fc7a4e846663d183853ef40c60cabca1d695272a04f1e0311d895fcddf",
+  "measured_device_encrypt_s": 0.037986194666397445,
+  "measured_verify_s_per_ballot": 0.06177926933257064,
+  "phases": {
+    "1-baseline": {
+      "attack_outcomes": {},
+      "attack_requests": {},
+      "honest_failed_codes": {
+        "503 OVERLOADED": 45
+      },
+      "honest_rate_target_per_s": 128.0,
+      "honest_recorded": 4469,
+      "honest_recorded_pct": 99.003,
+      "honest_sent": 4514,
+      "latency_s": {
+        "max": 32.802930313489924,
+        "p50": 3.3944772485338035,
+        "p95": 7.579262407423812,
+        "p99": 17.12538491813757
+      },
+      "mean_attempts": 1.478,
+      "seconds": 36
+    },
+    "2-under-attack": {
+      "attack_outcomes": {
+        "bad_proof": {
+          "400 BAD_SELECTION_PROOF": 72,
+          "429 RATE_LIMITED": 208,
+          "429 TAG_RATE_LIMITED": 11,
+          "503 OVERLOADED": 330
+        },
+        "idle_conns": {
+          "0 CLOSED_BY_SERVER": 177
+        },
+        "junk": {
+          "400 MALFORMED": 394,
+          "429 RATE_LIMITED": 1011,
+          "503 OVERLOADED": 1491
+        },
+        "oversize": {
+          "413 BODY_TOO_LARGE": 315
+        },
+        "replay": {
+          "200 IDEMPOTENT": 200,
+          "429 RATE_LIMITED": 490,
+          "429 TAG_RATE_LIMITED": 2,
+          "503 OVERLOADED": 765
+        },
+        "slowloris": {
+          "0 CLOSED_BY_SERVER": 65
+        },
+        "unregistered": {
+          "403 UNREGISTERED_TAG": 379,
+          "429 RATE_LIMITED": 970,
+          "503 OVERLOADED": 1546
+        }
+      },
+      "attack_requests": {
+        "bad_proof": 621,
+        "idle_conns": 177,
+        "junk": 2896,
+        "oversize": 315,
+        "replay": 1457,
+        "slowloris": 65,
+        "unregistered": 2895
+      },
+      "honest_failed_codes": {
+        "503 OVERLOADED": 1021
+      },
+      "honest_rate_target_per_s": 128.0,
+      "honest_recorded": 5128,
+      "honest_recorded_pct": 83.396,
+      "honest_sent": 6149,
+      "latency_s": {
+        "max": 41.010786500773975,
+        "p50": 6.594699614623096,
+        "p95": 21.68002109639201,
+        "p99": 28.924904392581084
+      },
+      "mean_attempts": 4.718,
+      "seconds": 48
+    },
+    "3-surge-1.5x": {
+      "attack_outcomes": {
+        "bad_proof": {
+          "0 CONNECTION": 4,
+          "400 BAD_SELECTION_PROOF": 15,
+          "429 RATE_LIMITED": 5,
+          "429 TAG_RATE_LIMITED": 1,
+          "503 OVERLOADED": 186
+        },
+        "idle_conns": {
+          "0 CLOSED_BY_SERVER": 66,
+          "0 CONNECTION": 1
+        },
+        "junk": {
+          "0 CONNECTION": 8,
+          "400 MALFORMED": 86,
+          "429 RATE_LIMITED": 35,
+          "503 OVERLOADED": 888
+        },
+        "oversize": {
+          "0 CONNECTION": 2,
+          "413 BODY_TOO_LARGE": 115
+        },
+        "replay": {
+          "0 CONNECTION": 8,
+          "200 IDEMPOTENT": 50,
+          "429 RATE_LIMITED": 11,
+          "503 OVERLOADED": 508
+        },
+        "slowloris": {
+          "0 CLOSED_BY_SERVER": 18
+        },
+        "unregistered": {
+          "0 CONNECTION": 14,
+          "403 UNREGISTERED_TAG": 106,
+          "429 RATE_LIMITED": 26,
+          "503 OVERLOADED": 944
+        }
+      },
+      "attack_requests": {
+        "bad_proof": 211,
+        "idle_conns": 67,
+        "junk": 1017,
+        "oversize": 117,
+        "replay": 577,
+        "slowloris": 18,
+        "unregistered": 1090
+      },
+      "honest_failed_codes": {
+        "0 CONNECTION": 351,
+        "400 INTERNAL:OSError": 67,
+        "400 INTERNAL:OperationalError": 161,
+        "429 TAG_RATE_LIMITED": 6,
+        "503 OVERLOADED": 1311
+      },
+      "honest_rate_target_per_s": 192.0,
+      "honest_recorded": 4944,
+      "honest_recorded_pct": 72.281,
+      "honest_sent": 6840,
+      "latency_s": {
+        "max": 39.37380227367248,
+        "p50": 11.03945760337956,
+        "p95": 29.70775544521166,
+        "p99": 34.42352096354443
+      },
+      "mean_attempts": 6.632,
+      "seconds": 36
+    }
+  },
+  "profile": "mini-peak",
+  "results": {
+    "SYN-PC-001": {
+      "nota_exceeds_winner": false,
+      "tied": [],
+      "winner": "C9"
+    }
+  },
+  "server_capacity_estimate_per_s": 242.79989326600617,
+  "server_final_outcomes": {
+    "ACCEPTED": 14544,
+    "BAD_SELECTION_PROOF": 87,
+    "BATCHES": 931,
+    "IDEMPOTENT_REPLAY": 247,
+    "INTERNAL:OSError": 67,
+    "INTERNAL:OperationalError": 161,
+    "MALFORMED": 480,
+    "OVERLOADED": 68734,
+    "RATE_LIMITED": 2756,
+    "TAG_RATE_LIMITED": 35,
+    "UNREGISTERED_TAG": 485,
+    "VERIFIED_EXPENSIVE": 14859
+  },
+  "server_http_defences": {
+    "body_too_large": 430,
+    "header_timeout": 326
+  },
+  "software": {
+    "source_digest": "9056c64ee6984d504df964b5910ab61916435f074b52ac86e6303554dc841852",
+    "version": "0.2.0"
+  },
+  "stage_seconds": {
+    "device_encryption_s": 95.7,
+    "finalization_s": 96.0,
+    "independent_verification_s": 381.9,
+    "load_s": 142.8,
+    "mix_and_tally_s": 204.6,
+    "registration_s": 43.1,
+    "setup_s": 0.3,
+    "total_s": 1059.2
+  },
+  "verification": {
+    "failed": [],
+    "failures": 0,
+    "status": "VERIFIED",
+    "warnings": 0
+  },
+  "voters_registered": 16882
+}
