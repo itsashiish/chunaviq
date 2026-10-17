@@ -15,3 +15,5 @@ sim*/
 *.db-wal
 *.db-shm
 .vercel/
+.vercel
+.env*
