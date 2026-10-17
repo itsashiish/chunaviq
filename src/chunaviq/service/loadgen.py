@@ -65,7 +65,9 @@ async def _request(host: str, port: int, body: bytes, client: str, timeout: floa
         writer.close()
 
 
-async def _honest(host, port, body: bytes, client: str, rec: Record, deadline: float, max_attempts: int = 10) -> None:
+async def _honest(host, port, body: bytes, client: str, rec: Record, deadline: float, max_attempts: int | None = None) -> None:
+    """A voter's phone: retries busy/rate-limited/connection failures with jittered backoff until it
+    succeeds or the deadline passes (real phones keep trying across the voting week)."""
     backoff = 0.25
     while True:
         rec.attempts += 1
@@ -77,7 +79,7 @@ async def _honest(host, port, body: bytes, client: str, rec: Record, deadline: f
         if status == 200:
             rec.tracking_code = out.get("tracking_code", "")
         retry = status in (0, 429, 503)
-        if not retry or rec.attempts >= max_attempts or time.monotonic() > deadline:
+        if not retry or (max_attempts is not None and rec.attempts >= max_attempts) or time.monotonic() > deadline:
             rec.t_done = time.monotonic()
             return
         wait = max(float(hdrs.get("retry-after", 0) or 0), random.uniform(0, backoff))  # noqa: S311 - jitter, not crypto
@@ -167,7 +169,7 @@ async def run_phases(host: str, port: int, honest_bodies, phases: list[dict], at
                     continue
                 if len(replay_pool) < 50 and random.random() < 0.01:  # noqa: S311
                     replay_pool.append(body)
-                tasks.append(asyncio.create_task(guarded(_honest(host, port, body, client, rec, t0 + end + 120))))
+                tasks.append(asyncio.create_task(guarded(_honest(host, port, body, client, rec, t0 + end + 60))))  # phones retry up to 60 s past the phase end
             else:
                 tasks.append(asyncio.create_task(guarded(_attack(host, port, kind, rec, attack_ctx))))
             rate = dict(streams)[kind]

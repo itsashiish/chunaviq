@@ -6,6 +6,8 @@ type Phase = {
   honest_sent: number;
   honest_recorded: number;
   honest_recorded_pct: number | null;
+  honest_recorded_within_30s?: number;
+  honest_recorded_within_30s_pct?: number | null;
   latency_s: { p50: number | null; p95: number | null; p99: number | null };
   attack_requests: Record<string, number>;
 };
@@ -66,7 +68,8 @@ function RehearsalCard({ name, data }: { name: string; data: Rehearsal | null | 
             <tr>
               <th scope="col">Phase</th>
               <th scope="col">Honest sent</th>
-              <th scope="col">Recorded</th>
+              <th scope="col">Recorded in the end</th>
+              <th scope="col">Within 30 s</th>
               <th scope="col">Latency p50 / p95 / p99</th>
             </tr>
           </thead>
@@ -78,6 +81,7 @@ function RehearsalCard({ name, data }: { name: string; data: Rehearsal | null | 
                 <td>
                   {p.honest_recorded} ({p.honest_recorded_pct}%)
                 </td>
+                <td>{p.honest_recorded_within_30s === undefined ? "-" : `${p.honest_recorded_within_30s} (${p.honest_recorded_within_30s_pct}%)`}</td>
                 <td>
                   {fmt(p.latency_s.p50)} / {fmt(p.latency_s.p95)} / {fmt(p.latency_s.p99)} s
                 </td>

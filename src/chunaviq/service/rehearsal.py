@@ -61,6 +61,7 @@ from ..election.roll import make_constituencies, make_roll
 from ..election.simulate import _winit, _wprepare
 from .loadgen import FLOODS, run_phases
 
+ON_TIME_S = 30.0  # "on time": recorded within 30 s of the first attempt
 DESIGN_RATE_LARGEST_SEAT = 128.0  # ballots/s: docs/scale/capacity.md, 150 crore electors, 100% turnout, 10% revotes
 
 
@@ -75,7 +76,8 @@ class Profile:
     attackers: int = 20
     botnet: int = 50
     mix_batch: int = 2048
-    server_workers: int = field(default_factory=lambda: max(1, (os.cpu_count() or 2) - 1))
+    # leave cores for the load generator, the network thread and the committer, which share this machine
+    server_workers: int = field(default_factory=lambda: max(1, (os.cpu_count() or 2) - 3))
 
 
 PROFILES = {
@@ -157,8 +159,9 @@ def run(profile_name: str, out: Path, *, seconds: int | None = None, rate: float
 
     # ------------------------------------------------------------ 0. size the run to this machine
     enc_s, ver_s = _quick_costs(p.options)
-    capacity = p.server_workers / ver_s
-    honest_rate = rate or p.rate or min(DESIGN_RATE_LARGEST_SEAT, 0.7 * capacity)
+    capacity = p.server_workers / (ver_s * 1.3)  # 30% for parsing, commit and HTTP overhead
+    # the surge phase runs at 1.5x, so keep it under capacity: whatever this machine can sustain, up to the design rate
+    honest_rate = rate or p.rate or min(DESIGN_RATE_LARGEST_SEAT, 0.6 * capacity)
     phases = _phases(p, honest_rate)
     ballots = sum(ph["rate"] * ph["seconds"] for ph in phases)
     voters = math.ceil(ballots / (1 + p.revote_fraction) * 1.05) + p.attackers
@@ -350,6 +353,8 @@ def _summarise(p, honest_rate, capacity, ver_s, enc_s, phases, res, snaps, board
             "honest_sent": len(hon),
             "honest_recorded": len(ok),
             "honest_recorded_pct": round(100 * len(ok) / len(hon), 3) if hon else None,
+            "honest_recorded_within_30s": sum(1 for x in lat if x <= ON_TIME_S),
+            "honest_recorded_within_30s_pct": round(100 * sum(1 for x in lat if x <= ON_TIME_S) / len(hon), 3) if hon else None,
             "honest_failed_codes": dict(Counter(f"{r.status} {r.code}" for r in hon if r.status != 200)),
             "latency_s": {"p50": _pct(lat, 0.5), "p95": _pct(lat, 0.95), "p99": _pct(lat, 0.99), "max": max(lat) if lat else None},
             "mean_attempts": round(statistics.mean(r.attempts for r in hon), 3) if hon else None,
@@ -439,8 +444,8 @@ def _write_outputs(out: Path, p: Profile, res, snaps, summary: dict) -> None:
         f"{summary['measured_verify_s_per_ballot'] * 1000:.0f} ms of one core here, "
         f"so the full design rate needs about {summary['cores_for_design_rate_at_this_cost']:.0f} cores at this cost.",
         "",
-        "| Phase | Honest sent | Recorded | p50 / p95 / p99 latency | Mean attempts | Attack requests |",
-        "|---|---|---|---|---|---|",
+        "| Phase | Honest sent | Recorded in the end | Recorded within 30 s | p50 / p95 / p99 latency | Mean attempts | Attack requests |",
+        "|---|---|---|---|---|---|---|",
     ]
     for name, ph in summary["phases"].items():
         lat = ph["latency_s"]
@@ -448,6 +453,7 @@ def _write_outputs(out: Path, p: Profile, res, snaps, summary: dict) -> None:
         att_n = sum(ph["attack_requests"].values())
         L.append(
             f"| {name} | {ph['honest_sent']} | {ph['honest_recorded']} ({ph['honest_recorded_pct']}%) | "
+            f"{ph['honest_recorded_within_30s']} ({ph['honest_recorded_within_30s_pct']}%) | "
             f"{fmt(lat['p50'])} / {fmt(lat['p95'])} / {fmt(lat['p99'])} | {ph['mean_attempts']} | {att_n} |"
         )
     L += ["", "## What the attacks got", ""]

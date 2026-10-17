@@ -8,7 +8,7 @@ Cheapest first; an attacker must pass each layer before costing the next.
 
 | # | Layer | Default | Refusal |
 |---|---|---|---|
-| 1 | Connection cap; header and body deadlines; idle timeout | 20,000 connections; 5 s headers; 10 s body; 30 s idle | connection closed |
+| 1 | Connection cap (at most the open-file limit − 512, which the server raises to the hard limit at start); header and body deadlines; idle timeout | 20,000 connections; 5 s headers; 10 s body; 30 s idle | connection closed |
 | 2 | Body and header size, from `Content-Length` | 512 KiB body, 8 KiB headers | 413 / 431 |
 | 3 | Per-client token bucket (the edge sets `X-Client`) | 2/s, burst 10 | 429 `RATE_LIMITED` |
 | 4 | Load shedding: bounded verification queue | 32 per worker | 503 `OVERLOADED` + `Retry-After` |
@@ -19,7 +19,7 @@ Cheapest first; an attacker must pass each layer before costing the next.
 | 9 | Proof verification in a bounded process pool | CPU − 1 workers | 400 `BAD_*` |
 | 10 | Group commit: one transaction + fsync per batch; receipt only after fsync | ≤ 256 per batch, ≤ 50 ms wait | — |
 
-Clients retry with exponential backoff and jitter; retries are safe because of layer 6. Revocations are not visible at any layer (a revoked tag is still "registered"), so the server leaks nothing to a coercer.
+Clients retry with exponential backoff and jitter; retries are safe because of layer 6. Any internal failure (resource exhaustion, a broken worker) is answered `503 OVERLOADED`, because the batch rolled back and nothing was recorded. Parsing, replay and registration lookups run in a small thread pool so the network thread never blocks. Revocations are not visible at any layer (a revoked tag is still "registered"), so the server leaks nothing to a coercer.
 
 What a botnet can still do: spend layers 1–8 (cheap) at whatever rate the edge lets through, and a registered attacker can force one proof check per 2 s per registration it controls. With identity-checked registration, that bounds proof-check abuse by the number of real identities an attacker controls.
 
@@ -42,7 +42,11 @@ A real constituency election, end to end, over HTTP, with the 2048-bit group and
 | `mini-peak` | 16 options | 120 s at the design rate or 70% of this machine's capacity | junk 60, oversize 6, unregistered 60, bad proof 12, replay 30, slowloris 1, idle 4 | `make check-mini` (with the 2,000-voter end-to-end test); ~5–8 min on 16 threads |
 | `shard-peak` | 16 options | 600 s at the largest constituency's design rate (128/s), or 70% of what this machine can verify | junk 300, oversize 30, unregistered 300, bad proof 60, replay 150, slowloris 5, idle 20 | a desktop or server; ~1–2 h on 16 threads |
 
+Simulated phones retry until 60 s after their phase ends (real phones keep trying across the week). The report gives honest ballots **recorded in the end** and **recorded within 30 s**, with latencies. When the rate is not fixed, it is sized to what the machine sustains (the 1.5× surge stays under its measured capacity, with 3 cores left for the load generator), and the report states the fraction of the design rate reached.
+
 Pass criteria: every honest ballot recorded (after retries), every receipt on the board, every attack refused, record **VERIFIED**, counts equal ground truth.
+
+The 2026-10-18 mini-peak run (`audits/rehearsal-mini-peak-2026-10-18/`) forced 100% of the design rate on one 16-core machine that also generated the attacks: integrity held, but only 99% / 83% / 72% of honest ballots were recorded in the three phases, and 228 requests hit an open-file limit. The fixes above came from that run.
 
 ### Run and publish on your machine
 

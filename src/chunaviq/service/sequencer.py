@@ -29,6 +29,7 @@ import asyncio
 import json
 import multiprocessing as mp
 import os
+import resource
 import signal
 import sqlite3
 import threading
@@ -155,6 +156,8 @@ class Sequencer:
         self.commit_exec = ThreadPoolExecutor(1)  # the single writer
         self._q: asyncio.Queue | None = None
         self.http = HTTPServer(self.handle)
+        self.http.max_connections = min(self.http.max_connections, raise_fd_limit())
+        self.front_exec = ThreadPoolExecutor(2)  # parsing and lookups, off the network thread
 
     # ----------------------------------------------------------------- request path
     def _reply(self, code: str, extra: dict | None = None) -> tuple[int, dict, dict]:
@@ -180,26 +183,18 @@ class Sequencer:
         if self.inflight >= self.queue_max:
             self.stats["OVERLOADED"] += 1
             return 503, {"error": "OVERLOADED"}, {"Retry-After": "1"}
+        loop = asyncio.get_running_loop()
         try:
-            sub = json.loads(body)
-            if not isinstance(sub, dict) or set(sub) != SUBMISSION_KEYS or not isinstance(sub["ballot"], dict) or set(sub["ballot"]) != BALLOT_KEYS:
-                raise ValueError
-            b = sub["ballot"]
-            if b["election_id"] != self.manifest["election_id"]:
-                return self._reply("WRONG_ELECTION")
-            if b["constituency"] not in self.options:
-                return self._reply("UNKNOWN_CONSTITUENCY")
-            tag = sub["tag"]
-            if not isinstance(tag, str) or not 0 < len(tag) <= 1024:
-                raise ValueError
-        except (ValueError, TypeError, KeyError, UnicodeDecodeError):
-            return self._reply("MALFORMED")
-        prior = self.box._prior(sub)
-        if prior is not None:
+            kind, val = await loop.run_in_executor(self.front_exec, self._front, body)
+        except (OSError, sqlite3.Error) as e:  # resource exhaustion: nothing was recorded, so the client may retry
+            self.stats[f"INTERNAL:{type(e).__name__}"] += 1
+            return self._reply("OVERLOADED")
+        if kind == "reply":
+            return self._reply(val)
+        if kind == "prior":
             self.stats["IDEMPOTENT_REPLAY"] += 1
-            return 200, prior, {}
-        if not self.tags.known(b["constituency"], tag):
-            return self._reply("UNREGISTERED_TAG")
+            return 200, val, {}
+        sub, tag = val
         last = self._tag_last.get(tag)
         if last is not None and now - last < self.tag_interval_s:
             self.stats["TAG_RATE_LIMITED"] += 1
@@ -207,9 +202,12 @@ class Sequencer:
         self._tag_last[tag] = now
         self.inflight += 1
         try:
-            loop = asyncio.get_running_loop()
             self.stats["VERIFIED_EXPENSIVE"] += 1
-            verdict = await loop.run_in_executor(self.pool, _wcheck, sub)
+            try:
+                verdict = await loop.run_in_executor(self.pool, _wcheck, sub)
+            except (OSError, RuntimeError) as e:
+                self.stats[f"INTERNAL:{type(e).__name__}"] += 1
+                return self._reply("OVERLOADED")
             if verdict.startswith("REJECT:"):
                 return self._reply(verdict[7:])
             fut = loop.create_future()
@@ -222,6 +220,29 @@ class Sequencer:
             return self._reply(res)
         self.stats["ACCEPTED"] += 1
         return 200, res, {}
+
+    def _front(self, body: bytes) -> tuple[str, object]:
+        """Schema, election, idempotent replay and registration checks (cheap; runs in a thread)."""
+        try:
+            sub = json.loads(body)
+            if not isinstance(sub, dict) or set(sub) != SUBMISSION_KEYS or not isinstance(sub["ballot"], dict) or set(sub["ballot"]) != BALLOT_KEYS:
+                raise ValueError
+            b = sub["ballot"]
+            if b["election_id"] != self.manifest["election_id"]:
+                return "reply", "WRONG_ELECTION"
+            if b["constituency"] not in self.options:
+                return "reply", "UNKNOWN_CONSTITUENCY"
+            tag = sub["tag"]
+            if not isinstance(tag, str) or not 0 < len(tag) <= 1024:
+                raise ValueError
+        except (ValueError, TypeError, KeyError, UnicodeDecodeError):
+            return "reply", "MALFORMED"
+        prior = self.box._prior(sub)
+        if prior is not None:
+            return "prior", prior
+        if not self.tags.known(b["constituency"], tag):
+            return "reply", "UNREGISTERED_TAG"
+        return "check", (sub, tag)
 
     # ----------------------------------------------------------------- group commit
     async def _committer(self) -> None:
@@ -249,7 +270,9 @@ class Sequencer:
             try:
                 results = await loop.run_in_executor(self.commit_exec, self.box.submit_batch, subs, tags)
             except Exception as e:  # noqa: BLE001 - never leave a client hanging
-                results = [f"INTERNAL:{type(e).__name__}"] * len(batch)
+                # the batch's transaction rolled back, so nothing was recorded: tell clients to retry
+                self.stats[f"INTERNAL:{type(e).__name__}"] += len(batch)
+                results = ["OVERLOADED"] * len(batch)
             self.stats["BATCHES"] += 1
             for (_, _, fut), r in zip(batch, results, strict=True):
                 if not fut.done():
@@ -298,6 +321,22 @@ class Sequencer:
                 mf.close()
             self.pool.shutdown(cancel_futures=True)
             self.commit_exec.shutdown()
+            self.front_exec.shutdown()
+
+
+def raise_fd_limit(reserve: int = 512) -> int:
+    """Raise the open-file limit to the hard limit and return how many client
+    connections fit under it. Linux defaults to 1,024 per process; running out turns
+    every new socket and database open into an internal error."""
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    want = hard if hard != resource.RLIM_INFINITY else 1_048_576
+    if soft < want:
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (want, hard))
+            soft = want
+        except (ValueError, OSError):
+            pass
+    return max(64, soft - reserve)
 
 
 def main(argv: list[str] | None = None) -> int:
