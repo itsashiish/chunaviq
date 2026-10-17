@@ -1,0 +1,275 @@
+{
+  "checks": [
+    {
+      "detail": "14061 entries",
+      "id": "record.canonical",
+      "status": "PASS",
+      "title": "Entries are canonical and contiguously numbered"
+    },
+    {
+      "detail": "chunaviq-record/2",
+      "id": "manifest.spec",
+      "status": "PASS",
+      "title": "Record uses protocol v2 (revoting, mixing)"
+    },
+    {
+      "detail": "bbf23b089f0cddafb003fc75862c679d0d722fde6f53f0ae06f6a3dface8fd1e",
+      "id": "manifest.hash",
+      "status": "PASS",
+      "title": "Manifest hash matches manifest content"
+    },
+    {
+      "detail": "",
+      "id": "manifest.signature",
+      "status": "PASS",
+      "title": "Manifest signed by the election officer key it declares"
+    },
+    {
+      "detail": "expected bbf23b089f0cddafb003fc75862c679d0d722fde6f53f0ae06f6a3dface8fd1e",
+      "id": "manifest.pinned",
+      "status": "PASS",
+      "title": "Manifest hash equals the independently obtained value"
+    },
+    {
+      "detail": "",
+      "id": "manifest.software",
+      "status": "PASS",
+      "title": "Software digest equals the audited release"
+    },
+    {
+      "detail": "CHUNAVIQ-2048-256-V1",
+      "id": "group.approved",
+      "status": "PASS",
+      "title": "Election group is an approved parameter set"
+    },
+    {
+      "detail": "",
+      "id": "group.sanity",
+      "status": "PASS",
+      "title": "Group generator has order q"
+    },
+    {
+      "detail": "49 checkpoints",
+      "id": "board.checkpoints",
+      "status": "PASS",
+      "title": "Every signed checkpoint matches the entries and extends its predecessor"
+    },
+    {
+      "detail": "final size 14061 of 14061",
+      "id": "board.sealed",
+      "status": "PASS",
+      "title": "Final signed checkpoint covers every entry"
+    },
+    {
+      "detail": "",
+      "id": "ceremony.commitments",
+      "status": "PASS",
+      "title": "All 5 trustees committed to degree-2 polynomials with valid proofs of knowledge"
+    },
+    {
+      "detail": "",
+      "id": "ceremony.acks",
+      "status": "PASS",
+      "title": "Every trustee signed that all shares it received verified"
+    },
+    {
+      "detail": "",
+      "id": "ceremony.joint_key",
+      "status": "PASS",
+      "title": "Published joint key = product of trustees' constant commitments"
+    },
+    {
+      "detail": "13679 checked",
+      "id": "ballots.valid",
+      "status": "PASS",
+      "title": "Every ballot has valid ciphertexts, a tag proof and selection/limit proofs (exactly one selection)"
+    },
+    {
+      "detail": "0 repeated",
+      "id": "ballots.no_copies",
+      "status": "PASS",
+      "title": "No ciphertext appears twice (ballot-copying defence)"
+    },
+    {
+      "detail": "",
+      "id": "ballots.tracking_codes",
+      "status": "PASS",
+      "title": "Tracking codes equal the hash of each ballot"
+    },
+    {
+      "detail": "",
+      "id": "ballots.window",
+      "status": "PASS",
+      "title": "Ballots were recorded inside the published voting window (hour resolution)"
+    },
+    {
+      "detail": "",
+      "id": "lifecycle.open_time",
+      "status": "PASS",
+      "title": "Election opened no earlier than the published opening hour"
+    },
+    {
+      "detail": "13679 vs 13679",
+      "id": "lifecycle.close_count",
+      "status": "PASS",
+      "title": "CLOSED entry states the number of ballots actually recorded"
+    },
+    {
+      "detail": "",
+      "id": "registration.summary",
+      "status": "PASS",
+      "title": "Registration summary and lists signed; registered <= eligible; one valid tag per registration not overridden in person; lists sorted, distinct, complete"
+    },
+    {
+      "detail": "13679 items for 13679 ballots",
+      "id": "finalization.complete",
+      "status": "PASS",
+      "title": "Every ballot has exactly one finalization item, in record order, signed by the ballot box"
+    },
+    {
+      "detail": "",
+      "id": "finalization.proofs",
+      "status": "PASS",
+      "title": "Each finalization proves: [flag 1 and masked vote = the ballot re-encrypted] or [flag 0 and masked vote = zero]"
+    },
+    {
+      "detail": "",
+      "id": "mixing.shuffles",
+      "status": "PASS",
+      "title": "Each batch was shuffled by at least 3 trustees with valid proofs, and every flag and tag decryption is proven"
+    },
+    {
+      "detail": "",
+      "id": "mixing.counted_tags",
+      "status": "PASS",
+      "title": "Counted ballots carry distinct tags, each a registered tag not overridden in person (at most one counted ballot per voter)"
+    },
+    {
+      "detail": "",
+      "id": "tally.aggregates",
+      "status": "PASS",
+      "title": "Encrypted per-option totals equal the product of the finalized (masked) votes"
+    },
+    {
+      "detail": "",
+      "id": "tally.decryption",
+      "status": "PASS",
+      "title": "At least 3 trustees decrypted each total with valid proofs"
+    },
+    {
+      "detail": "",
+      "id": "tally.results",
+      "status": "PASS",
+      "title": "Published counts equal the verified decryption, sum to the counted ballots, and follow the FPTP/NOTA rule"
+    },
+    {
+      "detail": "",
+      "id": "record.structure",
+      "status": "PASS",
+      "title": "Record follows the required entry sequence"
+    },
+    {
+      "detail": "",
+      "id": "custody.hsm_logs",
+      "status": "PASS",
+      "title": "Published trustee HSM logs are intact, hash-chained and signed by the HSM keys declared in the ceremony"
+    }
+  ],
+  "facts": {
+    "ballots_cast": 13679,
+    "election_id": "SYN-REHEARSAL-MINI-PEAK",
+    "entries": 14061,
+    "final_root": "8ea5b813b4f23152acb4dac2df7199159dddfc750910d7ca1f9630e35eebaac3",
+    "hsm_attestation_keys": {
+      "1": "da4869a6f702bdd946675d9b54443ae965d1397eaece4cf9e12651fed0d8d774",
+      "2": "25e0c723ab771383732d9899684a8ff99b7d01c9bb275b64fd97f23c7d386d8b",
+      "3": "323eae619fe17f766ecd75863c527e42bf035d9efe3a03b7a3960adfb04ce89b",
+      "4": "f13dd80eff4555046d0bbdc8998ae93aa3f7d85189e6eb68d173ddbba05d14b3",
+      "5": "2fb18bf0f90f8521da590641e78ec554f39f1caa4676ed05f6b4a95d3360ac14"
+    },
+    "joint_key": "7e61443fd9942c748f2cad481591a31ec2b61e9c1e4779d0ca09e4bdc73e7c4feb3f63a6a8dabe362fc861287ede476153312ea8c4abbc66305541dc8fbf766e8fde835a84b50857b0cc5c4e270260a2a1bf9046ea9bf9ecc1d9aeabdf7e65e569bc6420d74bef52e9b15fcac039908287f1e3719345324aad55fd6e19738558803cf1223b7c27fa9ad8aabf60d0dc75d6a229e2c601301be8195adee9f0650efd7d1e945dcd08ee9a72811835298bc99819d9761f0b90c1dccaf69b19a32b912d458f668c569b952fb2605d748254e706dbf5181241c8fd08eed7262e13dda64594d7387647f90c8af613b78833d90ac5c1d42c0dd14c8cb0a0f9176cbd5c81",
+    "manifest_hash": "bbf23b089f0cddafb003fc75862c679d0d722fde6f53f0ae06f6a3dface8fd1e",
+    "mixing": {
+      "batch_size": 512,
+      "min_mixers": 3
+    },
+    "notice": "SYNTHETIC RESEARCH ELECTION. All voters, candidates, parties and results are artificial. This record has no legal effect and was not produced under the authority of the Election Commission of India or any State Election Commission.",
+    "rejections_by_reason": {
+      "BAD_SELECTION_PROOF": 268,
+      "MALFORMED": 2328,
+      "OVERLOADED": 16476,
+      "RATE_LIMITED": 2566,
+      "TAG_RATE_LIMITED": 204,
+      "UNREGISTERED_TAG": 2353
+    },
+    "software": {
+      "name": "chunaviq",
+      "source_digest": "36fc377f369b80229ec0240f51ce51dd6169d3b0a013968e60708f6791f1134c",
+      "version": "0.2.0"
+    },
+    "title": "Synthetic dress rehearsal (mini-peak)",
+    "window": {
+      "closes_at": "2026-10-17T21:54:51Z",
+      "opens_at": "2026-10-17T21:49:06Z"
+    }
+  },
+  "failures": 0,
+  "results": {
+    "SYN-PC-001": {
+      "ballots": 12510,
+      "ballots_cast": 13679,
+      "counts": {
+        "C1": 800,
+        "C10": 769,
+        "C11": 776,
+        "C12": 797,
+        "C13": 762,
+        "C14": 790,
+        "C15": 772,
+        "C2": 767,
+        "C3": 792,
+        "C4": 799,
+        "C5": 757,
+        "C6": 755,
+        "C7": 743,
+        "C8": 787,
+        "C9": 844,
+        "NOTA": 800
+      },
+      "eligible": 13155,
+      "name": "Synthetic Constituency 1",
+      "nota_exceeds_winner": false,
+      "options": {
+        "C1": "Synthetic Candidate 1.1",
+        "C10": "Synthetic Candidate 1.10",
+        "C11": "Synthetic Candidate 1.11",
+        "C12": "Synthetic Candidate 1.12",
+        "C13": "Synthetic Candidate 1.13",
+        "C14": "Synthetic Candidate 1.14",
+        "C15": "Synthetic Candidate 1.15",
+        "C2": "Synthetic Candidate 1.2",
+        "C3": "Synthetic Candidate 1.3",
+        "C4": "Synthetic Candidate 1.4",
+        "C5": "Synthetic Candidate 1.5",
+        "C6": "Synthetic Candidate 1.6",
+        "C7": "Synthetic Candidate 1.7",
+        "C8": "Synthetic Candidate 1.8",
+        "C9": "Synthetic Candidate 1.9",
+        "NOTA": "None of the Above"
+      },
+      "quorum": [
+        2,
+        3,
+        4
+      ],
+      "registered": 13155,
+      "reregistrations": 0,
+      "superseded_or_revoked": 1169,
+      "tied": [],
+      "voted_in_person": 0,
+      "winner": "C9"
+    }
+  },
+  "status": "VERIFIED",
+  "warnings": 0
+}
