@@ -2,6 +2,8 @@
 
 **Research prototype** of an end-to-end verifiable, secret-ballot online election, with an **independent verifier** and an adversarial test suite. Legal and audit scope tailored to **India**.
 
+Live: **https://evlab.oglic.com** (landing page + 10,000-voter observer report)
+
 > ⚠️ **Synthetic data only. Not certified. Not authorised. Not for any binding election.**
 > Only the Election Commission of India (Art. 324) or a State Election Commission (Arts. 243K, 243ZA) can authorise a voting method for a real election. A passing test suite is evidence for researchers, not permission to run an election. See [`docs/legal-scope-india.md`](docs/legal-scope-india.md).
 
@@ -62,6 +64,7 @@ evlab report out/verify.json out/observer-report.html
 | `audits/` | Findings, remediation, scale evidence |
 | `tests/` | Crypto, rules, concurrency, recovery, privacy, tamper (outsider + insider), end-to-end, scale |
 | `tools/` | Group re-derivation, synthetic-data guard |
+| `site/`, `vercel.json` | Static site for Vercel: landing page + observer report (`make site` regenerates) |
 | `scripts/setup-github.sh` | Creates the GitHub repo with branch protection, security features and least-privilege Actions |
 
 ## Status

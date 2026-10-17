@@ -30,8 +30,10 @@ JSON
 # Least-privilege default token for Actions; actions must be pinned by full SHA (they are).
 gh api -X PUT "repos/$REPO/actions/permissions/workflow" -f default_workflow_permissions=read -F can_approve_pull_request_reviews=false >/dev/null
 
-# Branch protection on main: PRs only, 1 code-owner review (CONTRIBUTING asks for 2 on crypto paths),
-# required CI checks, linear history, signed commits, no force pushes or deletions, admins included.
+# Branch protection on main: PRs, 1 code-owner review (CONTRIBUTING asks for 2 on crypto paths),
+# required CI checks, linear history, signed commits, no force pushes or deletions.
+# Solo maintainer: admins may bypass (STRICT=1 enforces the rules on admins too, once there is a 2nd reviewer).
+ENFORCE_ADMINS=false; [ "${STRICT:-0}" = "1" ] && ENFORCE_ADMINS=true
 gh api -X PUT "repos/$REPO/branches/main/protection" --input - >/dev/null <<JSON
 {
   "required_status_checks": {
@@ -39,7 +41,7 @@ gh api -X PUT "repos/$REPO/branches/main/protection" --input - >/dev/null <<JSON
     "contexts": ["lint", "test (3.11, gmpy2)", "test (3.12, gmpy2)", "test (3.13, gmpy2)",
                  "test (3.11, pure-python)", "test (3.12, pure-python)", "test (3.13, pure-python)", "analyze"]
   },
-  "enforce_admins": true,
+  "enforce_admins": $ENFORCE_ADMINS,
   "required_pull_request_reviews": {
     "required_approving_review_count": 1,
     "require_code_owner_reviews": true,
@@ -56,4 +58,4 @@ JSON
 gh api -X POST "repos/$REPO/branches/main/protection/required_signatures" >/dev/null || true
 
 echo "Done: https://github.com/$REPO"
-echo "Note: with one maintainer, 'enforce_admins' + required review means you need a second account or collaborator to merge."
+echo "Admins can still push to main directly. Re-run with STRICT=1 once a second reviewer joins."
