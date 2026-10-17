@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite it as below."
+title: "ChunavIQ: an open, end-to-end verifiable remote-voting research prototype for India"
+type: software
+authors:
+  - family-names: Ramtekkar
+    given-names: Ashish
+    affiliation: Independent researcher, Mumbai, India
+    orcid: "https://orcid.org/0009-0006-5516-6843"
+version: 0.2.0
+date-released: 2026-10-18
+license: Apache-2.0
+repository-code: "https://github.com/itsashiish/chunaviq"
+url: "https://chunaviq.oglic.com"
+abstract: >-
+  Research prototype of an end-to-end verifiable, secret-ballot online election adapted to Indian law,
+  identity infrastructure and scale: deniable revoting with a polling-day override, Aadhaar-or-PAN
+  registration, one national threshold key held in hardware security modules, verifiable shuffles,
+  two independent verifiers, a national-scale capacity model and open adversarial dress rehearsals.
+  Synthetic data only; not for binding elections.
+keywords:
+  - electronic voting
+  - end-to-end verifiability
+  - coercion resistance
+  - revoting
+  - verifiable shuffle
+  - threshold cryptography
+  - hardware security modules
+  - India
+preferred-citation:
+  type: article
+  title: "ChunavIQ: An Open, End-to-End Verifiable Remote-Voting Prototype for India's Legal and Identity Constraints, with Deniable Revoting, Hardware-Held Trustee Keys and Adversarial Dress Rehearsals"
+  authors:
+    - family-names: Ramtekkar
+      given-names: Ashish
+      orcid: "https://orcid.org/0009-0006-5516-6843"
+  year: 2026
+  status: preprint
+  url: "https://github.com/itsashiish/chunaviq/blob/main/paper/ChunavIQ-paper.pdf"

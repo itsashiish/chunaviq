@@ -1,0 +1,30 @@
+{
+  "title": "ChunavIQ: an open, end-to-end verifiable remote-voting research prototype for India",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Ramtekkar, Ashish",
+      "affiliation": "Independent researcher, Mumbai, India",
+      "orcid": "0009-0006-5516-6843"
+    }
+  ],
+  "description": "<p>Research prototype of an end-to-end verifiable, secret-ballot online election adapted to Indian law, identity infrastructure and scale: deniable revoting with a polling-day override, Aadhaar-or-PAN registration, one national threshold key held in hardware security modules, Terelius-Wikstr&ouml;m verifiable shuffles, two independent verifiers (Python and TypeScript), a national-scale capacity model from measured unit costs, and open adversarial dress rehearsals with every request published. Includes the paper (paper/ChunavIQ-paper.pdf). Synthetic data only; not certified or authorised for any binding election. Live demo: https://chunaviq.oglic.com</p>",
+  "license": "Apache-2.0",
+  "keywords": [
+    "electronic voting",
+    "end-to-end verifiability",
+    "coercion resistance",
+    "revoting",
+    "verifiable shuffle",
+    "threshold cryptography",
+    "hardware security modules",
+    "India"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://chunaviq.oglic.com",
+      "relation": "isDocumentedBy",
+      "resource_type": "other"
+    }
+  ]
+}

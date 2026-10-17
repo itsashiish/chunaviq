@@ -4,6 +4,8 @@
 
 **Research prototype** of an end-to-end verifiable, secret-ballot online election, with an **independent verifier** and an adversarial test suite. Legal and audit scope tailored to **India**.
 
+**Paper:** [`paper/ChunavIQ-paper.pdf`](paper/ChunavIQ-paper.pdf) (preprint, 2026) · **Cite:** [`CITATION.cff`](CITATION.cff)
+
 Live demo: **https://chunaviq.oglic.com** — prove who you are with a synthetic Aadhaar or PAN, cast a secret ballot, vote again in private, try to cheat, count, and verify it yourself, all in the browser. Also on the site: **How it works** (every method and algorithm, stage by stage), **Law** (what Indian law would need to say), and **Evidence** (dress-rehearsal and capacity results). The 10,000-voter observer report is at `/report`.
 
 > ⚠️ **Synthetic data only. Not certified. Not authorised. Not for any binding election.**
@@ -41,6 +43,7 @@ make scale-national                         # national-scale property tests
 chunaviq federate out --shards 24 && chunaviq verify-federation out
 make capacity                               # re-measure and regenerate docs/scale/capacity.md
 make rehearsal-smoke                        # an election over HTTP under attack, end to end (minutes)
+make check-mini                             # 2,000-voter end-to-end run + mini-peak rehearsal (~20 min on 16 threads)
 make rehearsal-peak                         # the largest constituency's design rate (1-2 h on 16 threads)
 ```
 
@@ -78,8 +81,8 @@ chunaviq report out/verify.json out/observer-report.html
 
 | | |
 |---|---|
-| 10,000-voter run | [`audits/scale-10k/`](audits/scale-10k/) — v0.1.0 run, independently VERIFIED, counts equal ground truth (regenerate for v2 with `make scale`) |
-| Dress rehearsals | [`audits/`](audits/) `rehearsal-*` — elections over HTTP under seven attack kinds, with every request and every second of server state |
+| 10,000-voter run | [`audits/scale-10k/`](audits/scale-10k/) — v0.1.0 run, independently VERIFIED, counts equal ground truth (regenerate for v2 with `make scale`; the 2,000-voter v2 run passes in `make check-mini`) |
+| Dress rehearsals | [`audits/`](audits/) `rehearsal-*` — elections over HTTP under seven attack kinds, every request and every second of server state published. Smoke: 100% of honest ballots recorded under attack. Mini-peak (16 options, one 16-core machine): the first run at 100% of the busiest seat's design rate recorded only 72–99% and exposed defects; after fixes, a run at 78% recorded 100% (97–100% within 30 s). All records VERIFIED |
 | Self-assessment | [`audits/2026-10-17-self-assessment.md`](audits/2026-10-17-self-assessment.md) — including a receipt-freeness defect the fuzzer found and its fix |
 | Invariants → tests | [`spec/invariants.md`](spec/invariants.md) |
 
@@ -95,7 +98,8 @@ chunaviq report out/verify.json out/observer-report.html
 | `src/chunaviq/report.py` | Accessible, script-free observer report |
 | `spec/` | Protocol, record format, invariants |
 | `docs/` | Architecture, threat model, coercion, identity, DoS and rehearsal, India legal scope, privacy, key ceremony, audit procedures, scale, test strategy, roadmap |
-| `audits/` | Findings, remediation, scale evidence |
+| `audits/` | Findings, remediation, scale and rehearsal evidence |
+| `paper/` | The research paper (PDF and LaTeX source) |
 | `tests/` | Crypto, rules, concurrency, recovery, privacy, tamper (outsider + insider), end-to-end, scale |
 | `tools/` | Group re-derivation, synthetic-data guard |
 | `web/` | Browser demo and TypeScript engine + verifier (`web/src/engine`), UI (`web/src/App.tsx`), Methods / Law / Evidence pages (`web/src/pages`), tests (`web/tests`) |
