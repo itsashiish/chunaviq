@@ -118,6 +118,11 @@ export function Evidence() {
       <p className="lede">
         Every claim about scale and resilience comes from a run you can repeat. Results are published as raw files; this page only displays them.
       </p>
+      <p>
+        The research paper describing the design and these results:{" "}
+        <a href="https://github.com/itsashiish/chunaviq/blob/main/paper/ChunavIQ-paper.pdf">ChunavIQ (preprint, 2026)</a>. The code and data behind it are
+        archived at <a href="https://doi.org/10.5281/zenodo.23442948">doi.org/10.5281/zenodo.23442948</a>.
+      </p>
 
       <h2>Dress rehearsals: an election over HTTP, under attack</h2>
       <p>

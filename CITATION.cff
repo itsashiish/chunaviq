@@ -8,6 +8,7 @@ authors:
     affiliation: Independent researcher, Mumbai, India
     orcid: "https://orcid.org/0009-0006-5516-6843"
 version: 0.2.0
+doi: 10.5281/zenodo.23442948
 date-released: 2026-10-18
 license: Apache-2.0
 repository-code: "https://github.com/itsashiish/chunaviq"

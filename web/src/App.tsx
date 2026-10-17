@@ -74,6 +74,10 @@ export default function App() {
       <footer>
         ChunavIQ is a research prototype. It is not certified or authorised for any public election; in India only the Election Commission or a State
         Election Commission, under laws made by Parliament or a State legislature, can authorise a voting method. See <a href="#/law">the law needed</a>.
+        <br />
+        <a href="https://github.com/itsashiish/chunaviq/blob/main/paper/ChunavIQ-paper.pdf">Paper (preprint)</a> ·{" "}
+        <a href="https://github.com/itsashiish/chunaviq">Source code</a> ·{" "}
+        <a href="https://doi.org/10.5281/zenodo.23442948">Code archive, DOI 10.5281/zenodo.23442948</a>
       </footer>
     </>
   );
