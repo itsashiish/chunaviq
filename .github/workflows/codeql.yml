@@ -27,4 +27,4 @@ jobs:
         with:
           languages: python
           queries: security-extended
-      - uses: github/codeql-action/analyze@51f77329afa6477de8c49fc9c7046c15b9a4e79d # v3.29.5
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
