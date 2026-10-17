@@ -1,0 +1,87 @@
+{
+  "attacks": {
+    "ballot_after_close": "rejected: OUTSIDE_VOTING_WINDOW",
+    "cross_constituency_ballot": "rejected: BAD_CREDENTIAL",
+    "forged_credential": "rejected: BAD_CREDENTIAL",
+    "ineligible_person_requests_credential": "rejected: NOT_ON_ROLL",
+    "overvote_two_selections": "rejected: BAD_LIMIT_PROOF",
+    "replay_identical_ballot": "rejected: CREDENTIAL_ALREADY_USED",
+    "reuse_credential_new_ballot": "rejected: CREDENTIAL_ALREADY_USED",
+    "second_credential_same_voter": "rejected: ALREADY_ISSUED",
+    "tampered_ciphertext": "rejected: BAD_SELECTION_PROOF"
+  },
+  "ballots_accepted": 6837,
+  "benaloh_audits": {
+    "passed": 149
+  },
+  "config": {
+    "benaloh_audit_rate": 0.02,
+    "candidates_per_constituency": 4,
+    "checkpoint_every": 1000,
+    "constituencies": 5,
+    "durable": true,
+    "election_id": "SYN-2026-GE-001",
+    "group": "EVLAB-2048-256-V1",
+    "inject_attacks": true,
+    "rsa_bits": 3072,
+    "seed": 2026,
+    "threshold": 3,
+    "trustees": 5,
+    "turnout": 0.68,
+    "unavailable_trustees": 1,
+    "voters": 10000
+  },
+  "credentials_issued": 6837,
+  "eligible_voters": 10000,
+  "final_checkpoint": "93b13ad37d4d3647f038ad9e02efb454f69e074d1c3b27f67060fe347f5f9441",
+  "manifest_hash": "417637e571b783db9a401124d41a56828fc090578fb0e8162f88e8aa46fe13e0",
+  "reconciliation": {
+    "board_ballots": 6837,
+    "consistent": true,
+    "index_tokens": 6837
+  },
+  "record_entries": 6882,
+  "rejections_by_reason": {
+    "BAD_CREDENTIAL": 2,
+    "BAD_LIMIT_PROOF": 1,
+    "BAD_SELECTION_PROOF": 1,
+    "CREDENTIAL_ALREADY_USED": 2,
+    "OUTSIDE_VOTING_WINDOW": 1
+  },
+  "results": {
+    "SYN-AC-01": {
+      "nota_exceeds_winner": false,
+      "tied": [],
+      "winner": "C4"
+    },
+    "SYN-AC-02": {
+      "nota_exceeds_winner": false,
+      "tied": [],
+      "winner": "C4"
+    },
+    "SYN-AC-03": {
+      "nota_exceeds_winner": false,
+      "tied": [],
+      "winner": "C2"
+    },
+    "SYN-AC-04": {
+      "nota_exceeds_winner": true,
+      "tied": [],
+      "winner": "C3"
+    },
+    "SYN-AC-05": {
+      "nota_exceeds_winner": true,
+      "tied": [],
+      "winner": "C2"
+    }
+  },
+  "timings": {
+    "acceptance_s": 12.18,
+    "client_encryption_s": 82.63,
+    "credential_issuance_s": 35.15,
+    "key_ceremony_s": 0.27,
+    "server_verification_s": 126.55,
+    "tally_s": 2.75,
+    "total_s": 260.93
+  }
+}

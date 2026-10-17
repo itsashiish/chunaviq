@@ -1,0 +1,8 @@
+# Security-sensitive paths need review from a code owner (branch protection
+# requires it). Replace @OWNER with real maintainers; scripts/setup-github.sh
+# substitutes the repository owner automatically.
+*                         @OWNER
+/src/evlab/crypto/        @OWNER
+/src/evlab_verify/        @OWNER
+/spec/                    @OWNER
+/.github/                 @OWNER

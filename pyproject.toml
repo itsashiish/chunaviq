@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "verifiable-election-lab"
+version = "0.1.0"
+description = "Research prototype of an end-to-end verifiable, secret-ballot online election, with an independent verifier. Synthetic data only; not for binding elections."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = ["cryptography>=42"]
+
+[project.optional-dependencies]
+fast = ["gmpy2>=2.1"]
+dev = ["pytest>=8", "hypothesis>=6.100", "ruff>=0.5"]
+
+[project.scripts]
+evlab = "evlab.cli:main"
+evlab-verify = "evlab_verify.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+  "slow: long-running (scale, group re-derivation); run with -m slow",
+]
+
+[tool.ruff]
+line-length = 160
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "S", "I", "UP"]
+ignore = ["S101", "S311", "B008"]  # asserts in tests; `random` is used only for synthetic choices, never for keys
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]

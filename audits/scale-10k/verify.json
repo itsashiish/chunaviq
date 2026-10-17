@@ -1,0 +1,323 @@
+{
+  "checks": [
+    {
+      "detail": "6882 entries",
+      "id": "record.canonical",
+      "status": "PASS",
+      "title": "Entries are canonical and contiguously numbered"
+    },
+    {
+      "detail": "417637e571b783db9a401124d41a56828fc090578fb0e8162f88e8aa46fe13e0",
+      "id": "manifest.hash",
+      "status": "PASS",
+      "title": "Manifest hash matches manifest content"
+    },
+    {
+      "detail": "",
+      "id": "manifest.signature",
+      "status": "PASS",
+      "title": "Manifest signed by the election officer key it declares"
+    },
+    {
+      "detail": "expected 417637e571b783db9a401124d41a56828fc090578fb0e8162f88e8aa46fe13e0",
+      "id": "manifest.pinned",
+      "status": "PASS",
+      "title": "Manifest hash equals the independently obtained value"
+    },
+    {
+      "detail": "",
+      "id": "manifest.software",
+      "status": "PASS",
+      "title": "Software digest equals the audited release"
+    },
+    {
+      "detail": "EVLAB-2048-256-V1",
+      "id": "group.approved",
+      "status": "PASS",
+      "title": "Election group is an approved parameter set"
+    },
+    {
+      "detail": "",
+      "id": "group.sanity",
+      "status": "PASS",
+      "title": "Group generator has order q"
+    },
+    {
+      "detail": "13 checkpoints",
+      "id": "board.checkpoints",
+      "status": "PASS",
+      "title": "Every signed checkpoint matches the entries and extends its predecessor"
+    },
+    {
+      "detail": "final size 6882 of 6882",
+      "id": "board.sealed",
+      "status": "PASS",
+      "title": "Final signed checkpoint covers every entry"
+    },
+    {
+      "detail": "",
+      "id": "ceremony.commitments",
+      "status": "PASS",
+      "title": "All 5 trustees committed to degree-2 polynomials with valid proofs of knowledge"
+    },
+    {
+      "detail": "",
+      "id": "ceremony.acks",
+      "status": "PASS",
+      "title": "Every trustee signed that all shares it received verified"
+    },
+    {
+      "detail": "",
+      "id": "ceremony.joint_key",
+      "status": "PASS",
+      "title": "Published joint key = product of trustees' constant commitments"
+    },
+    {
+      "detail": "",
+      "id": "credentials.issuer_keys",
+      "status": "PASS",
+      "title": "Credential issuer keys signed by the eligibility authority, one per constituency"
+    },
+    {
+      "detail": "6837 checked",
+      "id": "ballots.valid",
+      "status": "PASS",
+      "title": "Every ballot carries a valid credential, ciphertexts and proofs (exactly one selection)"
+    },
+    {
+      "detail": "0 reused",
+      "id": "ballots.one_per_credential",
+      "status": "PASS",
+      "title": "No credential used twice"
+    },
+    {
+      "detail": "",
+      "id": "ballots.no_copies",
+      "status": "PASS",
+      "title": "No ciphertext appears twice (ballot-copying defence)"
+    },
+    {
+      "detail": "",
+      "id": "ballots.tracking_codes",
+      "status": "PASS",
+      "title": "Tracking codes equal the hash of each ballot"
+    },
+    {
+      "detail": "",
+      "id": "ballots.window",
+      "status": "PASS",
+      "title": "Ballots were recorded inside the published voting window (hour resolution)"
+    },
+    {
+      "detail": "",
+      "id": "lifecycle.open_time",
+      "status": "PASS",
+      "title": "Election opened no earlier than the published opening hour"
+    },
+    {
+      "detail": "6837 vs 6837",
+      "id": "lifecycle.close_count",
+      "status": "PASS",
+      "title": "CLOSED entry states the number of ballots actually recorded"
+    },
+    {
+      "detail": "",
+      "id": "reconciliation.participation",
+      "status": "PASS",
+      "title": "ballots <= credentials issued <= eligible voters, per constituency"
+    },
+    {
+      "detail": "",
+      "id": "tally.aggregates",
+      "status": "PASS",
+      "title": "Encrypted per-option totals equal the product of all accepted ballots"
+    },
+    {
+      "detail": "",
+      "id": "tally.decryption",
+      "status": "PASS",
+      "title": "At least 3 trustees decrypted each total with valid proofs"
+    },
+    {
+      "detail": "",
+      "id": "tally.results",
+      "status": "PASS",
+      "title": "Published counts equal the verified decryption and follow the FPTP/NOTA rule"
+    },
+    {
+      "detail": "",
+      "id": "record.structure",
+      "status": "PASS",
+      "title": "Record follows the required entry sequence"
+    }
+  ],
+  "facts": {
+    "election_id": "SYN-2026-GE-001",
+    "entries": 6882,
+    "final_root": "93b13ad37d4d3647f038ad9e02efb454f69e074d1c3b27f67060fe347f5f9441",
+    "manifest_hash": "417637e571b783db9a401124d41a56828fc090578fb0e8162f88e8aa46fe13e0",
+    "notice": "SYNTHETIC RESEARCH ELECTION. All voters, candidates, parties and results are artificial. This record has no legal effect and was not produced under the authority of the Election Commission of India or any State Election Commission.",
+    "rejections_by_reason": {
+      "BAD_CREDENTIAL": 2,
+      "BAD_LIMIT_PROOF": 1,
+      "BAD_SELECTION_PROOF": 1,
+      "CREDENTIAL_ALREADY_USED": 2,
+      "OUTSIDE_VOTING_WINDOW": 1
+    },
+    "software": {
+      "name": "verifiable-election-lab",
+      "source_digest": "56446a4730ef16e0a055c9c9084c8ec40af46c81c1f1ff3318f80fd0f01e0a33",
+      "version": "0.1.0"
+    },
+    "title": "Synthetic Assembly General Election (research simulation)",
+    "window": {
+      "closes_at": "2026-11-02T12:30:00Z",
+      "opens_at": "2026-11-02T01:30:00Z"
+    }
+  },
+  "failures": 0,
+  "results": {
+    "SYN-AC-01": {
+      "ballots": 1117,
+      "counts": {
+        "C1": 124,
+        "C2": 244,
+        "C3": 269,
+        "C4": 358,
+        "NOTA": 122
+      },
+      "credentials_issued": 1117,
+      "eligible": 1624,
+      "name": "Synthetic Constituency 1",
+      "nota_exceeds_winner": false,
+      "options": {
+        "C1": "Synthetic Candidate 1.1",
+        "C2": "Synthetic Candidate 1.2",
+        "C3": "Synthetic Candidate 1.3",
+        "C4": "Synthetic Candidate 1.4",
+        "NOTA": "None of the Above"
+      },
+      "quorum": [
+        2,
+        3,
+        4
+      ],
+      "tied": [],
+      "winner": "C4"
+    },
+    "SYN-AC-02": {
+      "ballots": 1446,
+      "counts": {
+        "C1": 163,
+        "C2": 310,
+        "C3": 313,
+        "C4": 389,
+        "NOTA": 271
+      },
+      "credentials_issued": 1446,
+      "eligible": 2105,
+      "name": "Synthetic Constituency 2",
+      "nota_exceeds_winner": false,
+      "options": {
+        "C1": "Synthetic Candidate 2.1",
+        "C2": "Synthetic Candidate 2.2",
+        "C3": "Synthetic Candidate 2.3",
+        "C4": "Synthetic Candidate 2.4",
+        "NOTA": "None of the Above"
+      },
+      "quorum": [
+        2,
+        3,
+        4
+      ],
+      "tied": [],
+      "winner": "C4"
+    },
+    "SYN-AC-03": {
+      "ballots": 1467,
+      "counts": {
+        "C1": 347,
+        "C2": 370,
+        "C3": 333,
+        "C4": 271,
+        "NOTA": 146
+      },
+      "credentials_issued": 1467,
+      "eligible": 2116,
+      "name": "Synthetic Constituency 3",
+      "nota_exceeds_winner": false,
+      "options": {
+        "C1": "Synthetic Candidate 3.1",
+        "C2": "Synthetic Candidate 3.2",
+        "C3": "Synthetic Candidate 3.3",
+        "C4": "Synthetic Candidate 3.4",
+        "NOTA": "None of the Above"
+      },
+      "quorum": [
+        2,
+        3,
+        4
+      ],
+      "tied": [],
+      "winner": "C2"
+    },
+    "SYN-AC-04": {
+      "ballots": 1674,
+      "counts": {
+        "C1": 377,
+        "C2": 137,
+        "C3": 430,
+        "C4": 291,
+        "NOTA": 439
+      },
+      "credentials_issued": 1674,
+      "eligible": 2555,
+      "name": "Synthetic Constituency 4",
+      "nota_exceeds_winner": true,
+      "options": {
+        "C1": "Synthetic Candidate 4.1",
+        "C2": "Synthetic Candidate 4.2",
+        "C3": "Synthetic Candidate 4.3",
+        "C4": "Synthetic Candidate 4.4",
+        "NOTA": "None of the Above"
+      },
+      "quorum": [
+        2,
+        3,
+        4
+      ],
+      "tied": [],
+      "winner": "C3"
+    },
+    "SYN-AC-05": {
+      "ballots": 1133,
+      "counts": {
+        "C1": 246,
+        "C2": 266,
+        "C3": 128,
+        "C4": 152,
+        "NOTA": 341
+      },
+      "credentials_issued": 1133,
+      "eligible": 1600,
+      "name": "Synthetic Constituency 5",
+      "nota_exceeds_winner": true,
+      "options": {
+        "C1": "Synthetic Candidate 5.1",
+        "C2": "Synthetic Candidate 5.2",
+        "C3": "Synthetic Candidate 5.3",
+        "C4": "Synthetic Candidate 5.4",
+        "NOTA": "None of the Above"
+      },
+      "quorum": [
+        2,
+        3,
+        4
+      ],
+      "tied": [],
+      "winner": "C2"
+    }
+  },
+  "status": "VERIFIED",
+  "warnings": 0
+}

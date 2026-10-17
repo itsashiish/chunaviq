@@ -1,0 +1,6 @@
+-c runtime.txt
+pytest>=8
+hypothesis>=6.100
+ruff>=0.5
+setuptools>=69
+build>=1.2
