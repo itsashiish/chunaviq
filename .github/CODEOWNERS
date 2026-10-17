@@ -1,8 +1,8 @@
 # Security-sensitive paths need review from a code owner (branch protection
-# requires it). Replace @OWNER with real maintainers; scripts/setup-github.sh
+# requires it). Replace @itsashiish with real maintainers; scripts/setup-github.sh
 # substitutes the repository owner automatically.
-*                         @OWNER
-/src/chunaviq/crypto/        @OWNER
-/src/chunaviq_verify/        @OWNER
-/spec/                    @OWNER
-/.github/                 @OWNER
+*                         @itsashiish
+/src/chunaviq/crypto/        @itsashiish
+/src/chunaviq_verify/        @itsashiish
+/spec/                    @itsashiish
+/.github/                 @itsashiish
