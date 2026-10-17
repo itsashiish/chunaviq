@@ -137,7 +137,7 @@ jobs:
         run: pytest -m "not slow and not scale and not rehearsal" -q
       - name: End-to-end synthetic election + independent verification
         run: |
-          chunaviq simulate run --voters 300 --constituencies 3 --rsa-bits 3072
+          chunaviq simulate run --voters 300 --constituencies 3
           H=$(python -c "import json;print(json.load(open('run/summary.json'))['manifest_hash'])")
           D=$(python -c "from chunaviq.election.manifest import source_digest;print(source_digest())")
           chunaviq verify run/record --expect-manifest-hash "$H" --expect-source-digest "$D" --json run/verify.json
