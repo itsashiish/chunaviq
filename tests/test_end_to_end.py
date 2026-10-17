@@ -20,13 +20,15 @@ ROOT = Path(__file__).resolve().parents[1]
 @pytest.fixture(scope="module")
 def sim(tmp_path_factory):
     out = tmp_path_factory.mktemp("sim") / "run"
-    summary = run(out, SimConfig(voters=150, constituencies=3, rsa_bits=2048, workers=2, seed=11))
+    summary = run(
+        out, SimConfig(voters=150, constituencies=3, workers=2, seed=11, revote_rate=0.1, coerced_rate=0.08, reregister_rate=0.04, in_person_rate=0.04)
+    )
     return out, summary
 
 
 def test_every_injected_attack_is_rejected(sim):
     _, s = sim
-    assert len(s["attacks"]) >= 9
+    assert len(s["attacks"]) >= 14
     assert not any(v.startswith("ACCEPTED") for v in s["attacks"].values()), s["attacks"]
     assert s["attacks"]["replay_identical_ballot"].startswith("idempotent")
 
@@ -42,8 +44,26 @@ def test_simulation_record_verifies_and_matches_ground_truth(sim):
 def test_reconciliation_and_audits(sim):
     _, s = sim
     assert s["reconciliation"]["consistent"]
-    assert s["ballots_accepted"] == s["credentials_issued"]
+    assert s["ballots_accepted"] >= s["registered"]
+    assert s["finalization"]["final"] == s["registered"] - s["voted_in_person_after_online"]
     assert s["benaloh_audits"].get("failed", 0) == 0
+
+
+def test_coercion_scenarios(sim):
+    """Coerced voters revoted in private: the coerced ballot never counts, the voter
+    can confirm their own latest ballot counts, and can show a coercer a fake proof
+    that the coerced ballot counts which is indistinguishable from a real one."""
+    _, s = sim
+    c = s["coercion"]
+    assert c["coerced_voters"] >= 1 and c["coerced_ballot_has_counted_proof"] == 0
+    ok, n = c["voters_checked_latest_counts"].split("/")
+    assert ok == n and c["voter_can_fake_proof_for_coercer"] is True
+
+
+def test_hsm_logs_published_and_verified(sim):
+    out, _ = sim
+    rep = verify_record(out / "record")
+    assert any(ch.id == "custody.hsm_logs" and ch.status == "PASS" for ch in rep.checks)
 
 
 def test_observer_report_renders(sim):

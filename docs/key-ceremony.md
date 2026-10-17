@@ -1,29 +1,56 @@
-# Key ceremony and key custody
+# Key ceremony and HSM key custody
 
-The prototype runs the ceremony in one process. This page specifies what a witnessed ceremony would need, so the gap is explicit.
+## One national key, one share per trustee — not 543
 
-## Roles
+A national election has 543 constituencies. A per-constituency key would give each trustee 543 shares to guard, with no gain: the same five trustees would hold all of them, so stealing one trustee's HSM would expose all 543 anyway. v2 therefore runs **one key ceremony for the national election**; every constituency encrypts under that key and **each trustee's HSM holds exactly one share**.
 
-* **n trustees** (default 5), each from a different institution; **threshold k** (default 3). Recommended: k > n/2 so a minority cannot decrypt and a minority cannot block.
-* **Witnesses**: at least two observers independent of the trustees and the officer.
-* **Officer**: publishes the joint key after all acknowledgements.
+Separation between constituencies comes from *what* the HSM agrees to decrypt, not from separate keys: every decryption request names its ciphertexts (per-option totals of one constituency, or the rows of one verified mix batch) and needs observers to attest to them. If the Commission still wanted per-constituency keys, the applet would store a map `ceremony → share` and apply the same policy per entry; storage is not the constraint (543 shares × 32 bytes).
 
-## Lifecycle of a key share
+## Where the code runs
 
-| Stage | Prototype | Required for a real ceremony |
+`custody.TrusteeApplet` is the code that runs **inside** each trustee's HSM. A decryption share is `α^{s_i}` with a Chaum–Pedersen proof, which needs custom arithmetic with the secret share; standard PKCS#11 cannot do it without exporting the share. HSMs that run signed custom code inside the security boundary can:
+
+| Vendor | Mechanism |
+|---|---|
+| Thales Luna | Functionality Modules (FM SDK) |
+| Entrust nShield | CodeSafe |
+| Utimaco | CryptoServer SDK |
+
+In tests, `seal`/`unseal` emulate the HSM's protected storage so the whole flow runs anywhere. In a deployment the applet is ported to the vendor SDK, its binary hash is published, and the HSM attests to it.
+
+## Ceremony
+
+| Step | Inside the HSM | Published |
 |---|---|---|
-| Generation | `Trustee.__init__` draws coefficients from `secrets` | Air-gapped machine per trustee; hardware RNG health-checked; fresh OS image; witnessed |
-| Commitment | Signed `trustee_commitment` with Schnorr proofs | Same, signed with a trustee key whose fingerprint was published in advance |
-| Share distribution | In-memory call | Authenticated encryption to each recipient's published key; transfer by removable media under witness |
-| Share verification | Feldman check; `CeremonyError` on failure; signed `trustee_ack` | Same; a failed check triggers a public complaint and the dealer is excluded or the ceremony restarts |
-| Coefficient destruction | `Trustee.finalize` clears the list | Wipe and witness; record destruction in the ceremony log |
-| Storage | Process memory | HSM or encrypted media in tamper-evident bags, held in separate locations |
-| Use | `decryption_share` on aggregates only | Each trustee checks that the aggregate it is asked to decrypt equals the product of the published ballots before contributing (the verifier code can be used for this) |
-| Recovery | Any k of n | Same; losing n − k + 1 shares makes the election undecryptable — plan storage accordingly |
-| Destruction | — | After the legal challenge period closes, destroy all shares under witness and publish the record of destruction |
+| 1. Begin | Bind to the national manifest hash; generate attestation (Ed25519) and transport (X25519) keys | Trustee's attestation key in `trustee_ack` |
+| 2. Commit | Draw degree-(k−1) polynomial | `trustee_commitment` with Schnorr proofs |
+| 3. Distribute | Encrypt each share to the recipient HSM's transport key (HKDF-SHA256 → AES-256-GCM) | Nothing (ciphertexts are useless outside the recipient HSM) |
+| 4. Verify & combine | Feldman check of every incoming share; refuse bad ones; sum | `trustee_ack {verified_all_shares: true}` |
+| 5. Destroy | Coefficients wiped | Log entry |
+
+Witnesses: at least two observers independent of the trustees and the officer. Default n = 5, k = 3.
+
+## Using a share
+
+The applet produces decryption shares **only** if the request carries:
+
+1. the election's `CLOSED` lifecycle entry, signed by a registered officer key — nothing is decrypted while voting is open;
+2. approvals from **2 of 3** of this trustee's operator cards — no single insider;
+3. attestations from **2 of 3** independent observers that they verified the ciphertexts are what the purpose says (`aggregate`, `mix-flag`, `mix-tag`) — so a single ballot cannot be smuggled in as a "total";
+4. a fresh nonce, within the election's decryption budget.
+
+Every operation is appended to a hash-chained log signed with the applet's attestation key. Logs are published after the election and checked against the attestation keys in the record (`test_hsm_logs_published_and_verified`).
+
+## Backup and recovery
+
+* Clone to a second HSM only to that HSM's transport key, with operator quorum (`export_clone`).
+* Any k of n trustees suffice; losing n − k + 1 shares makes the election undecryptable, so keep clones in separate locations.
+* After the election-petition period, destroy all shares under witness and publish the destruction log.
 
 ## What must never happen
 
-* A trustee decrypting anything other than a published aggregate.
-* Shares, coefficients or the joint secret existing on a networked machine.
-* The officer, the eligibility authority or the board operator acting as a trustee.
+* A share in plaintext outside an HSM, or on a networked general-purpose machine.
+* A trustee decrypting anything other than attested totals or attested mix outputs.
+* The officer, eligibility authority or ballot-box operator acting as a trustee or observer.
+
+Tests: `tests/test_custody.py`.

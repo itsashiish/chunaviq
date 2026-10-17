@@ -1,8 +1,25 @@
-// Cheating attempts the demo lets visitors try. Each must be refused by the ballot box.
-import { bytesToHex, randomBytes, toHex } from "./bigint";
-import { selectionContext, type Ballot } from "./ballot";
-import { ctToJson, disjProve, disjToJson, G, P, Q, rand } from "./crypto";
-import { DemoElection, VoterDevice } from "./election";
+// Cheating attempts the demo lets visitors try (protocol v2). Each must be refused.
+import { bytesToHex, toHex } from "./bigint";
+import { bodyDigest, encryptBallot, limitContext, linkContext, selectionContext, tagContext, trackingCode, type Ballot, type Submission } from "./ballot";
+import {
+  addCts,
+  cpProve,
+  cpToJson,
+  ctToJson,
+  disjProve,
+  disjToJson,
+  div,
+  fastFor,
+  G,
+  gPow,
+  linkStatement,
+  P,
+  Q,
+  rand,
+  sigmaProve,
+  tagStatement,
+} from "./crypto";
+import { DemoElection, liveCapture, VoterDevice } from "./election";
 import { canonicalJson, sha256Hex, type Json } from "./encoding";
 import { MerkleTree } from "./merkle";
 import type { Body } from "./sign";
@@ -13,85 +30,127 @@ export type Attack = { id: string; title: string; how: string; run: (e: DemoElec
 
 export const ATTACKS: Attack[] = [
   {
-    id: "twice",
-    title: "Vote a second time",
-    how: "Your device seals a new ballot with the credential you already used.",
-    run: (e, me) => void e.submit(me.prepare("C1").ballot),
-    explain: { CREDENTIAL_ALREADY_USED: "Each credential is accepted once. The ballot box remembers it without knowing whose it is." },
+    id: "insider-revote",
+    title: "Vote for someone else, from inside",
+    how: "You run the ballot box, so you know a voter's tag. You build a valid-looking revote under it, without the secret on their phone.",
+    run: (e, me) => void e.submit(forgeUnderTag(e, me)),
+    explain: { BAD_TAG_PROOF: "Every ballot proves knowledge of the secret behind its tag. Knowing the tag is not enough; only the voter's device has the secret." },
   },
   {
-    id: "second-credential",
-    title: "Ask for another credential",
-    how: "You log in again and request a fresh credential.",
-    run: (_e, me) => me.obtainCredential(),
-    explain: { ALREADY_ISSUED: "The eligibility authority issues one credential per voter on the roll." },
-  },
-  {
-    id: "forge",
-    title: "Forge a credential",
-    how: "You invent a token and a signature instead of asking the authority.",
-    run: (e, me) => {
-      const b = clone(me.prepare("C2").ballot);
-      b.credential = { token: bytesToHex(randomBytes(32)), signature: toHex(BigInt("0x" + bytesToHex(randomBytes(380))) | 1n) };
-      void e.submit(b);
+    id: "unregistered",
+    title: "Vote without registering",
+    how: "Your device invents a tag and votes with it, skipping identity checks.",
+    run: (e) => {
+      const fake = new VoterDevice(e.elig.people.values().next().value!, e);
+      fake.t = rand();
+      fake.T = gPow(fake.t);
+      void e.submit(fake.submission(fake.prepare("C1")));
     },
-    explain: { BAD_CREDENTIAL: "The signature does not check out against the authority's published key." },
+    explain: { UNREGISTERED_TAG: "The ballot box only accepts tags the eligibility authority registered after checking Aadhaar or PAN." },
   },
   {
     id: "overvote",
     title: "Vote for two candidates",
     how: "Two boxes encrypt a 1. Each still proves it holds a 0 or a 1.",
-    run: (e) => {
-      const d = freshDevice(e);
-      const b = clone(d.prepare("C1").ballot);
-      const tok = b.credential.token;
+    run: (e, me) => {
+      const sub = me.submission(me.prepare("C1"));
+      const b = sub.ballot;
+      const ta = b.tag.ciphertext.alpha;
       for (const j of [0, 1]) {
         const r = rand();
         const ct = e.pk!.encrypt(1n, r);
         b.selections[j].ciphertext = ctToJson(ct);
-        b.selections[j].proof = disjToJson(disjProve(e.pk!, ct, 1, r, selectionContext(e.mh, b.constituency, b.selections[j].option_id, tok)));
+        b.selections[j].proof = disjToJson(disjProve(e.pk!, ct, 1, r, selectionContext(e.mh, b.constituency, b.selections[j].option_id, ta)));
       }
       b.limit_proof.v = toHex((BigInt("0x" + b.limit_proof.v) + 1n) % Q);
-      void e.submit(b);
+      void e.submit(sub);
     },
     explain: { BAD_LIMIT_PROOF: "Every ballot must prove its boxes add up to exactly one vote. Two votes cannot produce that proof." },
   },
   {
     id: "copy",
-    title: "Copy someone else's ballot",
-    how: "You paste another voter's encrypted choices under your own fresh credential, to vote the way they did.",
-    run: (e) => {
-      const victim = e.board.of("ballot")[0].body.ballot as unknown as Ballot;
-      const d = freshDevice(e);
-      const b = clone(d.prepare("C3").ballot);
-      b.selections = clone(victim.selections);
-      b.limit_proof = clone(victim.limit_proof);
-      void e.submit(b);
+    title: "Copy someone else's vote",
+    how: "You paste another voter's encrypted choices into your own ballot, to vote the way they did.",
+    run: (e, me) => {
+      const victim = e.board.of("ballot").find((x) => e.tagOf(x.body.tracking_code as string) !== toHex(me.T!))!.body.ballot as unknown as Ballot;
+      const sub = me.submission(me.prepare("C3"));
+      sub.ballot.selections = clone(victim.selections);
+      sub.ballot.limit_proof = clone(victim.limit_proof);
+      void e.submit(sub);
     },
-    explain: { BAD_SELECTION_PROOF: "Each proof is tied to the credential it was made with, so copied proofs fail." },
+    explain: { BAD_SELECTION_PROOF: "Each proof is tied to the ballot's own encrypted tag, so copied proofs fail." },
+  },
+  {
+    id: "resubmit",
+    title: "Claim someone else's ballot as yours",
+    how: "You resend another voter's whole ballot, saying it is under your tag.",
+    run: (e, me) => {
+      const victim = e.board.of("ballot").find((x) => e.tagOf(x.body.tracking_code as string) !== toHex(me.T!))!.body.ballot as unknown as Ballot;
+      const mine = me.submission(me.prepare("C1"));
+      void e.submit({ ballot: clone(victim), tag: mine.tag, link: mine.link });
+    },
+    explain: { BAD_TAG_LINK: "Your device must prove, privately to the ballot box, which tag a ballot is under. It cannot for someone else's ballot." },
   },
   {
     id: "mark",
     title: "Hide a marker in your ballot",
     how: "You add a note so a vote buyer can find your ballot in the public record.",
-    run: (e) => {
-      const d = freshDevice(e);
-      const b = clone(d.prepare("C1").ballot) as Ballot & { marker?: string };
-      (b.selections[0].ciphertext as Record<string, string>).marker = "paid-voter-17";
-      void e.submit(b);
+    run: (e, me) => {
+      const sub = me.submission(me.prepare("C1"));
+      (sub.ballot.selections[0].ciphertext as Record<string, string>).marker = "paid-voter-17";
+      void e.submit(sub);
     },
     explain: { MALFORMED: "Ballots must match the exact format. Any extra field is refused, so ballots cannot be tagged." },
   },
+  {
+    id: "pan-only",
+    title: "Register as someone using only their PAN",
+    how: "You know a voter's PAN, name and birth date (all printed on the card) but not their phone or face.",
+    run: (e) => {
+      const p = [...e.elig.people.values()].find((x) => x.panRef && !e.elig.registrations.has(x.voterId))!;
+      const txn = e.elig.panStart(p.panRef!, p.name, p.dob);
+      e.elig.panFinish(p.panRef!, txn, "000000", liveCapture(p.face, false));
+    },
+    explain: {
+      OTP_MISMATCH: "PAN alone proves nothing about who is holding the phone. The code goes to the mobile number on the electoral roll.",
+      FACE_MISMATCH: "PAN registration also needs a face match against the roll photograph.",
+    },
+  },
+  {
+    id: "impostor",
+    title: "Pass a face check as someone else",
+    how: "You try Aadhaar face authentication for another voter with your own face.",
+    run: (e) => {
+      const p = [...e.elig.people.values()].find((x) => !e.elig.registrations.has(x.voterId))!;
+      e.elig.aadhaarFace(p.aadhaarRef, liveCapture(p.face, false));
+    },
+    explain: { FACE_MISMATCH: "The face does not match the one UIDAI holds for that Aadhaar number." },
+  },
 ];
 
-/** A credentialed abstainer from the roll, used as the attacker's second identity. */
-function freshDevice(e: DemoElection): VoterDevice {
-  const id = [...e.elig.roll.entries()].reverse().find(([, r]) => !r.issued)?.[0];
-  if (!id) throw new Error("no unused voters left on the roll");
-  const d = e.device(id);
-  d.obtainCredential();
-  return d;
+/** The insider forgery: a ballot that encrypts a known tag T, with valid selection and limit proofs, and a fake tag proof. */
+function forgeUnderTag(e: DemoElection, victim: VoterDevice): Submission {
+  const pk = e.pk!;
+  const T = victim.T!;
+  const r = rand();
+  const tct = { alpha: gPow(r), beta: (T * pk.kPow(r)) % P };
+  const ta = toHex(tct.alpha);
+  const nonces: bigint[] = [];
+  const cts = e.optionIds.map((oid, j) => {
+    const rr = rand();
+    nonces.push(rr);
+    return { oid, ct: pk.encrypt(j === 0 ? 1n : 0n, rr), m: (j === 0 ? 1 : 0) as 0 | 1, rr };
+  });
+  const sels = cts.map(({ oid, ct, m, rr }) => ({ option_id: oid, ciphertext: ctToJson(ct), proof: disjToJson(disjProve(pk, ct, m, rr, selectionContext(e.mh, victim.constituency, oid, ta))) }));
+  const agg = addCts(cts.map((x) => x.ct));
+  const lp = cpToJson(cpProve(nonces.reduce((a, b) => (a + b) % Q, 0n), pk.K, agg.alpha, div(agg.beta, G), "contest-limit", limitContext(e.mh, victim.constituency, ta), (x) => pk.kPow(x)));
+  const proof = sigmaProve(tagStatement(pk.K, tct.alpha, tct.beta), [r, rand()], "ballot-tag", tagContext(e.mh, victim.constituency, bodyDigest(sels, lp)), fastFor(pk));
+  const ballot: Ballot = { election_id: e.electionId, constituency: victim.constituency, tag: { ciphertext: ctToJson(tct), proof }, selections: sels, limit_proof: lp };
+  const link = sigmaProve(linkStatement(pk.K, tct.alpha, tct.beta, T), [r], "tag-link", linkContext(e.mh, trackingCode(ballot)), fastFor(pk));
+  return { ballot, tag: toHex(T), link };
 }
+
+export { encryptBallot };
 
 // ------------------------------------------------------------------ record tampering
 export type Tamper = { id: string; title: string; who: string; apply: (e: DemoElection) => { entries: string; checkpoints: string }; expect: string };
@@ -117,6 +176,17 @@ function bumpVote(ls: string[]): string[] {
   return out;
 }
 
+function resignedEntry(ls: string[], type: string, edit: (body: Body) => void, sign: (b: Body) => Body): string[] {
+  const i = ls.findIndex((l) => l.includes(`"type":"${type}"`));
+  const ent = JSON.parse(ls[i]);
+  const { signature: _s, signer: _r, ...body } = ent.body as Body;
+  edit(body as Body);
+  ent.body = sign(body as Body);
+  const out = [...ls];
+  out[i] = canonicalJson(ent as Json);
+  return out;
+}
+
 export const TAMPERS: Tamper[] = [
   {
     id: "outsider",
@@ -136,22 +206,59 @@ export const TAMPERS: Tamper[] = [
     expect: "ballots.valid",
   },
   {
+    id: "flag",
+    title: "Count a ballot the voter replaced",
+    who: "The ballot box, after polls close: it flips one ballot's 'counts' flag and re-signs.",
+    apply: (e) => {
+      const ls = resignedEntry(
+        lines(e),
+        "finalization",
+        (b) => {
+          const it = (b.items as Body[])[0];
+          const f = it.flag as { alpha: string; beta: string };
+          f.beta = toHex((BigInt("0x" + f.beta) * G) % P);
+        },
+        (b) => e.board.operator.signBody(b),
+      );
+      return { entries: ls.join("\n") + "\n", checkpoints: resign(e, ls) };
+    },
+    expect: "finalization.proofs",
+  },
+  {
+    id: "mixer",
+    title: "Swap a ballot while shuffling",
+    who: "A trustee who mixes: it replaces one row with a copy of another and signs its output.",
+    apply: (e) => {
+      const ls = resignedEntry(
+        lines(e),
+        "shuffle",
+        (b) => {
+          const rows = b.rows as Json[];
+          rows[0] = clone(rows[1]);
+        },
+        (b) => e.trustees.find((t) => t.trustee.index === (b.mixer as number))!.key.signBody(b),
+      );
+      return { entries: ls.join("\n") + "\n", checkpoints: resign(e, ls) };
+    },
+    expect: "mixing.shuffles",
+  },
+  {
     id: "officer",
     title: "Move votes in the published result",
     who: "An insider holding both the officer's and the operator's keys.",
     apply: (e) => {
-      const ls = lines(e);
-      const i = ls.findIndex((l) => l.includes('"type":"result"'));
-      const ent = JSON.parse(ls[i]);
-      const { signature: _s, signer: _r, ...body } = ent.body as Body;
-      const counts = body.counts as { option_id: string; votes: number }[];
-      counts[0].votes += 3;
-      counts[1].votes -= 3;
-      ent.body = e.officer.signBody(body as Body);
-      ls[i] = canonicalJson(ent as Json);
+      const ls = resignedEntry(
+        lines(e),
+        "result",
+        (b) => {
+          const counts = b.counts as { option_id: string; votes: number }[];
+          counts[0].votes += 3;
+          counts[1].votes -= 3;
+        },
+        (b) => e.officer.signBody(b),
+      );
       return { entries: ls.join("\n") + "\n", checkpoints: resign(e, ls) };
     },
     expect: "tally.results",
   },
 ];
-

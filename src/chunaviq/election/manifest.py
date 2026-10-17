@@ -80,6 +80,9 @@ def build_manifest(
     eligibility_key: str,
     software_version: str,
     federation: dict | None = None,
+    min_mixers: int = 3,
+    mix_batch: int = 2048,
+    max_ballots_per_tag: int = 30,
 ) -> dict:
     for c in constituencies:
         ids = c.option_ids
@@ -91,12 +94,15 @@ def build_manifest(
         raise ValueError("duplicate constituency id")
     if not 1 <= threshold <= len(trustee_keys):
         raise ValueError("threshold must satisfy 1 <= k <= n")
+    if not 1 <= min_mixers <= len(trustee_keys) or mix_batch < 2:
+        raise ValueError("need 1 <= min_mixers <= n and a mix batch of at least 2")
     out = {
-        "spec_version": "chunaviq-record/1",
+        "spec_version": "chunaviq-record/2",
         "election_id": election_id,
         "title": title,
         "notice": SYNTHETIC_NOTICE,
-        "voting_rule": "FPTP-single-member; one selection per ballot; NOTA counted but cannot win",
+        "voting_rule": "FPTP-single-member; one selection per ballot; NOTA counted but cannot win; "
+        "a voter may vote again and only their last ballot under a currently valid registration counts",
         "group": group_name,
         "window": {"opens_at": opens_at, "closes_at": closes_at},
         "constituencies": [c.to_dict() for c in constituencies],
@@ -105,6 +111,8 @@ def build_manifest(
             "members": [{"index": i + 1, "role": f"trustee-{i + 1}", "public_key": k} for i, k in enumerate(trustee_keys)],
         },
         "keys": {"officer": officer_key, "board": board_key, "eligibility": eligibility_key},
+        "mixing": {"min_mixers": min_mixers, "batch_size": mix_batch},
+        "revoting": {"max_ballots_per_tag": max_ballots_per_tag},
         "software": {"name": "chunaviq", "version": software_version, "source_digest": source_digest()},
     }
     if federation is not None:

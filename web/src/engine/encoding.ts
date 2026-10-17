@@ -27,7 +27,7 @@ export const canonicalBytes = (v: Json): Uint8Array => enc.encode(canonicalJson(
 
 export const sha256Hex = (b: Uint8Array): string => bytesToHex(sha256(b));
 
-export type HashItem = bigint | string | HashItem[];
+export type HashItem = bigint | string | Uint8Array | HashItem[];
 
 function u32(n: number): Uint8Array {
   return new Uint8Array([(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]);
@@ -43,6 +43,7 @@ function encodeItem(x: HashItem): Uint8Array {
     const raw = enc.encode(x);
     return concat(enc.encode("s"), u32(raw.length), raw);
   }
+  if (x instanceof Uint8Array) return concat(enc.encode("b"), u32(x.length), x);
   return concat(enc.encode("l"), u32(x.length), ...x.map(encodeItem));
 }
 

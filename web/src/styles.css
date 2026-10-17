@@ -266,3 +266,39 @@ aside.record li.new { animation: flash 900ms ease-out; }
 
 footer { max-width: 1140px; margin: 0 auto; padding: 24px 16px 48px; color: var(--mute); font-size: 0.88rem; border-top: 1px solid var(--line); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------------------------------------------------------------- identity methods, ballot history */
+.methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin: 14px 0 18px; }
+.method { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.method.on { border-color: var(--evm); box-shadow: 0 0 0 1px var(--evm); }
+.method input { margin-top: 5px; accent-color: var(--evm); }
+.method b { display: block; font-weight: 600; }
+.method small { display: block; color: var(--mute); font-size: 0.88rem; line-height: 1.45; }
+.actions.row { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.history { list-style: none; padding: 0; margin: 12px 0; border-top: 1px solid var(--line); font-size: 0.93rem; }
+.history li { padding: 7px 0; border-bottom: 1px solid var(--line); }
+.history small { color: var(--mute); }
+.panel.wide { margin: 16px 0; }
+.note { border-left: 3px solid var(--warn); padding: 6px 12px; color: var(--mute); font-size: 0.93rem; max-width: 72ch; }
+
+/* ---------------------------------------------------------------- reference pages: methods, law, evidence */
+.page { max-width: 1140px; margin: 0 auto; padding: 8px 16px 40px; }
+.page h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.15; margin: 18px 0 10px; }
+.page h2 { font-size: 1.3rem; margin: 36px 0 10px; }
+.page .lede { color: var(--mute); max-width: 70ch; }
+.page ul { max-width: 80ch; padding-left: 1.2em; }
+.page li { margin: 6px 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 8px; }
+.toc a { font-size: 0.88rem; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; background: var(--surface); }
+.toc a:hover { border-color: var(--evm); }
+.method-stage { border-top: 1px solid var(--line); margin-top: 32px; scroll-margin-top: 16px; }
+.method-stage > p { max-width: 75ch; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.methods-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 640px; }
+.methods-table th, .methods-table td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.methods-table thead th { font-weight: 500; color: var(--mute); font-size: 0.82rem; background: var(--paper); }
+.methods-table tbody th { font-weight: 600; width: 18%; }
+.methods-table tr:last-child > * { border-bottom: 0; }
+.methods-table .ref { font-family: var(--mono); font-size: 0.8rem; color: var(--mute); word-break: break-word; width: 16%; }
+.sources { font-size: 0.9rem; }
+@media (max-width: 640px) { .methods-table { font-size: 0.85rem; } .top nav { flex-wrap: wrap; gap: 10px 14px; } }

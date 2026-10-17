@@ -41,6 +41,20 @@ def _verify_shard(args: tuple[str, str]) -> dict:
     return {"status": d["status"], "failed": [c["id"] for c in d["checks"] if c["status"] == "FAIL"], "results": d["results"], "facts": d["facts"]}
 
 
+def _national_key(d: Path, nhash: str, nkey: str, members: list[dict], k: int) -> tuple[bool, str | None, str]:
+    """National ceremony file: signed, bound to the manifest, by the declared committee; returns its joint key."""
+    cer = _load_signed(d / "national" / "ceremony.json")
+    if not ed_ok(cer, nkey, "national-officer") or cer["national_manifest_hash"] != nhash:
+        return False, None, "ceremony file unsigned or not bound to this manifest"
+    comm = [e["body"] for e in cer["entries"] if e["type"] == "trustee_commitment"]
+    if [b["commitment"]["index"] for b in comm] != [m["index"] for m in members]:
+        return False, None, "ceremony commitments do not match the committee"
+    for b, m in zip(comm, members, strict=True):
+        if not ed_ok(b, m["public_key"], m["role"]) or len(b["commitment"]["commitments"]) != k:
+            return False, None, f"commitment of {m['role']} invalid"
+    return True, cer["joint_public_key"], ""
+
+
 def verify_federation(directory: str | Path, *, expect_national_hash: str | None = None, workers: int | None = None) -> Report:
     d = Path(directory)
     rep = Report()
@@ -56,7 +70,7 @@ def _run(d: Path, rep: Report, pin: str | None, workers: int) -> None:
     man = mb["manifest"]
     nhash = hashlib.sha256(cjson(man)).hexdigest()
     nkey = man["keys"]["national_officer"]
-    rep.add("national.spec", "National manifest uses the federation format", man.get("spec_version") == "chunaviq-federation/1")
+    rep.add("national.spec", "National manifest uses the federation format", man.get("spec_version") == "chunaviq-federation/2")
     rep.add("national.hash", "National manifest hash matches its content", nhash == mb["manifest_hash"], nhash)
     rep.add("national.signature", "National manifest signed by the national officer", ed_ok(mb, nkey, "national-officer"))
     if pin:
@@ -81,8 +95,25 @@ def _run(d: Path, rep: Report, pin: str | None, workers: int) -> None:
         f"declared {len(declared)}, indexed {len(listed)}, present {len(present)}",
     )
 
+    from .groups import APPROVED_GROUPS
+
+    members = man["trustees"]["members"]
+    cer_ok, nat_K, why = _national_key(d, nhash, nkey, members, man["trustees"]["threshold"])
+    if cer_ok:
+        gp = APPROVED_GROUPS.get(man["group"])
+        from .vmath import hx
+
+        K = 1
+        cer = _load_signed(d / "national" / "ceremony.json")
+        for e in cer["entries"]:
+            if e["type"] == "trustee_commitment":
+                K = K * hx(e["body"]["commitment"]["commitments"][0]) % gp["p"]
+        cer_ok = format(K, "x") == nat_K
+        why = why or ("" if cer_ok else "published joint key is not the product of the commitments")
+    rep.add("national.key", "One national key ceremony by the declared trustee committee; joint key = product of commitments", cer_ok, why)
     by_id = {s["shard_id"]: s for s in idx["shards"]}
     eligible = {s["id"]: s["eligible_voters"] for s in man["shards"]}
+    officers = {s["id"]: s["officer_key"] for s in man["shards"]}
     committee = [(m["index"], m["role"], m["public_key"]) for m in man["trustees"]["members"]]
     jobs = [(str(d / "shards" / sid / "record"), by_id[sid]["manifest_hash"]) for sid in declared if sid in by_id and sid in present]
     with ProcessPoolExecutor(max_workers=workers, mp_context=mp.get_context("spawn")) as ex:
@@ -108,7 +139,10 @@ def _run(d: Path, rep: Report, pin: str | None, workers: int) -> None:
             "group": sm["group"] == man["group"],
             "committee": sm["trustees"]["threshold"] == man["trustees"]["threshold"]
             and [(m["index"], m["role"], m["public_key"]) for m in sm["trustees"]["members"]] == committee,
-            "keys": (sm["keys"]["officer"], sm["keys"]["board"], sm["keys"]["eligibility"]) == (ix["officer_key"], ix["board_key"], ix["eligibility_key"]),
+            "keys": (sm["keys"]["officer"], sm["keys"]["board"], sm["keys"]["eligibility"]) == (ix["officer_key"], ix["board_key"], ix["eligibility_key"])
+            and sm["keys"]["officer"] == officers[sid],
+            "national_key": o["facts"].get("joint_key") == nat_K,
+            "mixing": sm["mixing"] == man["mixing"],
             "final_root": bool(cps) and cps[-1]["root"] == ix["final_root"] and cps[-1]["tree_size"] == ix["final_tree_size"],
         }
         if not all(conds.values()):
@@ -130,7 +164,10 @@ def _run(d: Path, rep: Report, pin: str | None, workers: int) -> None:
         "; ".join(bad_verify[:5]) or f"{len(outcomes)} shards",
     )
     rep.add(
-        "shards.bound", "Every shard is bound to this national election (window, group, committee, keys, final root)", not bad_bind, "; ".join(bad_bind[:5])
+        "shards.bound",
+        "Every shard is bound to this national election (window, group, committee, national key, mixing rules, keys, final root)",
+        not bad_bind,
+        "; ".join(bad_bind[:5]),
     )
 
     res = _load_signed(d / "national" / "results.json")

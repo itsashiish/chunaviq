@@ -5,6 +5,7 @@ package (enforced by tests/test_verifier_independence.py). Everything here is
 re-implemented from spec/protocol.md and spec/record-format.md so that a bug in
 the election code is not silently shared by the code that checks it.
 Third-party dependencies: `cryptography` (Ed25519 only) and optionally gmpy2.
+Protocol v2 additions (Sigma/OR proofs, verifiable shuffle) are in vsigma.py.
 """
 
 from __future__ import annotations
@@ -45,6 +46,8 @@ def _item(x) -> bytes:
     if isinstance(x, str):
         b = x.encode()
         return b"s" + len(b).to_bytes(4, "big") + b
+    if isinstance(x, bytes):
+        return b"b" + len(x).to_bytes(4, "big") + x
     if isinstance(x, list):
         return b"l" + len(x).to_bytes(4, "big") + b"".join(_item(y) for y in x)
     raise TypeError(type(x))
@@ -101,18 +104,6 @@ def zero_or_one_ok(G_: G, K: int, al: int, be: int, pr: dict, ctx: list) -> bool
         and G_.e(G_.g, v1) == a1 * G_.e(al, c1) % p
         and G_.e(K, v1) == b1 * G_.e(bg, c1) % p
     )
-
-
-# ------------------------------------------------------------------ RSA FDH
-def rsa_fdh_ok(n: int, e: int, message: bytes, sig: int) -> bool:
-    if not 0 < sig < n:
-        return False
-    k = (n.bit_length() + 7) // 8
-    seed, out, ctr = b"chunaviq/v1/credential-fdh\x00" + message, b"", 0
-    while len(out) < k - 1:
-        out += hashlib.sha256(seed + ctr.to_bytes(4, "big")).digest()
-        ctr += 1
-    return powmod(sig, e, n) == int.from_bytes(out[: k - 1], "big")
 
 
 # ------------------------------------------------------------------ Ed25519

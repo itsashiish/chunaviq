@@ -2,8 +2,9 @@
 """Fail if anything shaped like a real Indian identity number is committed.
 
 Patterns: Aadhaar-like (12 digits, first digit 2-9, optional spaces),
-EPIC-like (3 capital letters + 7 digits), Indian mobile-like (+91 / 10 digits
-starting 6-9). Synthetic IDs in this project use `syn-v-NNNNNNN` instead.
+EPIC-like (3 capital letters + 7 digits), PAN-like (5 capital letters, 4 digits,
+1 capital letter), Indian mobile-like (+91 / 10 digits starting 6-9). Synthetic
+IDs in this project use `syn-v-`, `syn-uid-`, `syn-pan-` and `syn-mob-` prefixes instead.
 Usage: python tools/scan_pii.py [paths...]  (defaults to tracked files)
 """
 
@@ -20,6 +21,7 @@ _NOT_DECIMAL_AFTER = r"(?![\w-])(?!\.\d)"
 PATTERNS = {
     "aadhaar-like": re.compile(_NOT_DECIMAL_BEFORE + r"[2-9]\d{3}[ ]?\d{4}[ ]?\d{4}" + _NOT_DECIMAL_AFTER),
     "epic-like": re.compile(r"(?<![A-Za-z0-9])[A-Z]{3}\d{7}(?![A-Za-z0-9])"),
+    "pan-like": re.compile(r"(?<![A-Za-z0-9])[A-Z]{5}\d{4}[A-Z](?![A-Za-z0-9])"),
     "mobile-like": re.compile(_NOT_DECIMAL_BEFORE + r"(?:\+91[ -]?)?[6-9]\d{9}" + _NOT_DECIMAL_AFTER),
 }
 SKIP_SUFFIXES = {".png", ".jpg", ".pdf", ".zip", ".gz", ".db"}

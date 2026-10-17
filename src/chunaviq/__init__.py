@@ -2,4 +2,4 @@
 secret-ballot online election. Synthetic data only. Not certified, not
 authorised, and not suitable for any binding election. See README.md."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

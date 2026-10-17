@@ -1,9 +1,7 @@
 // A small pool of module workers; splits a list of items across them and reports progress.
-import type { Json } from "./encoding";
-import type { WireCtx } from "./worker";
-import type { BallotChecker } from "./verifier";
-
-type Kind = "prepare" | "boxCheck" | "verify";
+import type { FinalJob, FinalOut, MixJob, MixOut, Runner } from "./election";
+import type { VerifyRunner } from "./verifier";
+import type { Kind, WireCtx } from "./worker";
 
 export class Pool {
   private workers: Worker[];
@@ -16,37 +14,51 @@ export class Pool {
   }
   run<T>(kind: Kind, ctx: WireCtx, items: unknown[], onProgress?: (done: number) => void): Promise<T[]> {
     const n = this.workers.length;
-    const chunk = Math.ceil(items.length / n) || 1;
-    const parts = this.workers.map((_, i) => items.slice(i * chunk, (i + 1) * chunk));
+    // round-robin, so expensive items (mixing batches) spread evenly across workers
+    const parts: { idx: number[]; items: unknown[] }[] = this.workers.map(() => ({ idx: [], items: [] }));
+    items.forEach((it, i) => {
+      parts[i % n].idx.push(i);
+      parts[i % n].items.push(it);
+    });
     const done = Array.from({ length: n }, () => 0);
+    const result: T[] = Array.from({ length: items.length });
     return Promise.all(
       parts.map(
-        (part, i) =>
-          new Promise<T[]>((resolve, reject) => {
-            if (!part.length) return resolve([]);
+        (part, w) =>
+          new Promise<void>((resolve, reject) => {
+            if (!part.items.length) return resolve();
             const id = this.nextId++;
-            const w = this.workers[i];
+            const worker = this.workers[w];
             const onMsg = (ev: MessageEvent) => {
               if (ev.data.id !== id) return;
               if ("progress" in ev.data) {
-                done[i] = ev.data.progress;
+                done[w] = ev.data.progress;
                 onProgress?.(done.reduce((a, b) => a + b, 0));
               } else {
-                w.removeEventListener("message", onMsg);
-                done[i] = part.length;
-                onProgress?.(done.reduce((a, b) => a + b, 0));
-                resolve(ev.data.done as T[]);
+                worker.removeEventListener("message", onMsg);
+                (ev.data.done as T[]).forEach((r, j) => (result[part.idx[j]] = r));
+                resolve();
               }
             };
-            w.addEventListener("message", onMsg);
-            w.addEventListener("error", reject, { once: true });
-            w.postMessage({ id, kind, ctx, items: part });
+            worker.addEventListener("message", onMsg);
+            worker.addEventListener("error", reject, { once: true });
+            worker.postMessage({ id, kind, ctx, items: part.items });
           }),
       ),
-    ).then((rs) => rs.flat());
+    ).then(() => result);
   }
-  checker(): BallotChecker {
-    return (ballots: Record<string, Json>[], ctx, onProgress) => this.run<string | null>("verify", ctx, ballots, onProgress);
+  runner(ctx: WireCtx): Runner {
+    return {
+      finalize: (jobs: FinalJob[], p) => this.run<FinalOut>("finalize", ctx, jobs, p),
+      mix: (jobs: MixJob[], p) => this.run<MixOut>("mix", ctx, jobs, p),
+    };
+  }
+  verifier(): VerifyRunner {
+    return {
+      ballots: (items, ctx, p) => this.run("vballot", ctx, items, p),
+      finals: (items, ctx, p) => this.run("vfinal", ctx, items, p),
+      mixes: (items, ctx, p) => this.run("vmix", ctx, items, p),
+    };
   }
   terminate() {
     this.workers.forEach((w) => w.terminate());

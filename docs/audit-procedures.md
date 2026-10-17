@@ -12,15 +12,17 @@ Written for a synthetic or mock election run with this prototype. Each step name
 | B4 | Re-derive the group from its seed | `chunaviq check-group`; test `test_groups_rederive_from_public_seed_independently` |
 | B5 | Witness the key ceremony (`docs/key-ceremony.md`); confirm every trustee ack is in the record | `ceremony.*` checks |
 | B6 | Run a complete mock election with the frozen release and verify it | `chunaviq simulate` + `chunaviq verify` |
-| B7 | Test eligibility controls, recovery and incident procedures | `pytest -m "not slow"` |
+| B7 | Test eligibility controls, recovery and incident procedures | `make test` |
+| B8 | Run dress rehearsals under attack and publish the outputs | `chunaviq rehearse`, `docs/dos-and-rehearsal.md` |
 
 ## During voting
 
 | # | Step | Evidence |
 |---|---|---|
 | D1 | Observers fetch each new signed checkpoint and keep a copy; at least two observers compare what they received | `checkpoints.jsonl`; consistency proofs |
-| D2 | Monitor service health, rejection counts by reason and lockouts — **never** individual choices (they are encrypted) | Ballot box `rejections` |
-| D3 | Voters may run Benaloh challenges and check their receipts | `verify_receipt` |
+| D2 | Monitor service health, rejection counts by reason, load shedding and lockouts — **never** individual choices (they are encrypted) or revocations (hidden until close) | Sequencer metrics |
+| D3 | Voters may run Benaloh challenges, check their receipts, and revote | `verify_receipt` |
+| D5 | Polling stations report in-person voters to the eligibility authority on polling day | Registration summary `voted_in_person` |
 | D4 | Record every incident with time, effect and action; an early close needs a written reason, which is published | `early_close_reason`; verifier WARN |
 
 ## After voting
@@ -28,9 +30,11 @@ Written for a synthetic or mock election run with this prototype. Each step name
 | # | Step | Evidence |
 |---|---|---|
 | A1 | Close; confirm `ballots_accepted` equals the ballots on the board | `lifecycle.close_count` |
-| A2 | Eligibility publishes the participation summary; check `ballots ≤ issued ≤ eligible` per constituency | `reconciliation.participation` |
-| A3 | **Participation sampling (authorised auditor):** draw a random sample of commitments, contact those voters through an independent channel, and confirm they did request a credential. Unexplained commitments are evidence of credential minting (threat R2). | Audit worksheet |
-| A4 | Trustees independently recompute the aggregates before contributing shares | Trustee runs the verifier on the record up to `aggregate` |
+| A2 | Eligibility publishes the registration summary and sorted lists; check `registered ≤ eligible`, `valid tags = registered − voted in person`, digests | `registration.summary` |
+| A3 | **Participation sampling (authorised auditor):** draw a random sample of commitments, contact those voters through an independent channel, and confirm they did register. Unexplained commitments are evidence of registrations for abstainers (threat R2). Voters can find their own commitment with the salt their phone holds. | Audit worksheet |
+| A3b | Observers check each finalization, shuffle and decryption request before attesting to the trustees' HSMs (statement `verified:<purpose>`) | HSM logs, published after the election |
+| A4 | Trustees and observers independently recompute the aggregates and verify the shuffles before any decryption | Verifier on the record up to each step |
+| A4b | Publish every trustee HSM's audit log and check it against the attestation keys in the record | `test_hsm_logs_published_and_verified` |
 | A5 | Run the independent verifier with both pins; archive the JSON report | `chunaviq verify … --json` |
 | A6 | Render and publish the observer report with the record, checkpoints, report JSON and software identifiers | `chunaviq report` |
 | A7 | Publish exceptions: rejected-ballot counts, early close, unavailable trustees, warnings | Observer report |

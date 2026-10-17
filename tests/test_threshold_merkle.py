@@ -1,4 +1,4 @@
-"""Threshold key custody, blind credentials and the Merkle log."""
+"""Threshold key custody and the Merkle log."""
 
 import itertools
 
@@ -6,7 +6,6 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from chunaviq.crypto.blind import RSABlindSigner, blind, credential_message, unblind
 from chunaviq.crypto.elgamal import PublicKey, add, dlog_bounded
 from chunaviq.crypto.group import get_group
 from chunaviq.crypto.merkle import (
@@ -87,50 +86,7 @@ def test_forged_decryption_share_rejected(ceremony):
     assert not verify_decryption_share(G, agg, public_share(G, comms, 2), M, pr, ["x"])
 
 
-# ------------------------------------------------------------------ blind credentials
-@pytest.fixture(scope="module")
-def signer():
-    return RSABlindSigner(2048)
-
-
-def test_blind_signature_roundtrip(signer):
-    msg = credential_message("E", "C1", b"\x07" * 32)
-    blinded, state = blind(signer.public, msg)
-    sig = unblind(signer.public, state, signer.sign_blinded(blinded))
-    assert signer.public.verify(msg, sig)
-    assert not signer.public.verify(credential_message("E", "C2", b"\x07" * 32), sig)  # bound to constituency
-    assert not signer.public.verify(credential_message("E2", "C1", b"\x07" * 32), sig)  # bound to election
-    assert not signer.public.verify(msg, sig + 1)
-
-
-def test_issuer_sees_only_blinded_value(signer):
-    msg = credential_message("E", "C1", b"\x01" * 32)
-    blinded, state = blind(signer.public, msg)
-    bsig = signer.sign_blinded(blinded)
-    sig = unblind(signer.public, state, bsig)
-    from chunaviq.crypto.blind import fdh
-
-    assert blinded != fdh(signer.public.n, msg) and bsig != sig  # issuer's view differs from the credential
-
-
-def test_two_blindings_of_same_message_differ(signer):
-    msg = credential_message("E", "C1", b"\x02" * 32)
-    assert blind(signer.public, msg)[0] != blind(signer.public, msg)[0]
-
-
-def test_sign_blinded_range(signer):
-    with pytest.raises(ValueError):
-        signer.sign_blinded(0)
-    with pytest.raises(ValueError):
-        signer.sign_blinded(signer.public.n)
-
-
-def test_token_length_enforced():
-    with pytest.raises(ValueError):
-        credential_message("E", "C", b"short")
-
-
-# ------------------------------------------------------------------ Merkle
+# ------------------------------------------------------------------ Merkle log
 @given(st.integers(min_value=1, max_value=70))
 def test_incremental_tree_matches_rfc6962_reference(n):
     data = [i.to_bytes(2, "big") for i in range(n)]

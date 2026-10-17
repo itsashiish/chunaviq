@@ -4,7 +4,7 @@ Each test pins one property the national design depends on:
   * counting works at real constituency sizes (~60 lakh votes per option)
   * a federation of constituency shards verifies, and any shard tampering is caught
   * the sequencer and verifier use bounded memory, independent of record size
-  * group commit keeps one-credential-one-ballot under duplicates within and across batches
+  * group commit keeps ciphertexts unique and revote counts exact within and across batches
   * one shard's sequencer ingests far faster than the largest constituency needs
 Run: pytest -m scale
 """
@@ -76,7 +76,7 @@ def test_threshold_tally_of_a_58_lakh_vote_total():
 @pytest.fixture(scope="module")
 def federation(tmp_path_factory):
     out = tmp_path_factory.mktemp("fed") / "run"
-    summary = run_federation(out, FedConfig(shards=6, voters_per_shard=60, rsa_bits=2048, workers=2, seed=7))
+    summary = run_federation(out, FedConfig(shards=6, voters_per_shard=60, workers=2, seed=7, mix_batch=32))
     return out, summary
 
 
@@ -86,7 +86,7 @@ def test_federation_verifies_and_matches_ground_truth(federation):
     assert rep.verified, [c for c in rep.checks if c.status == "FAIL"]
     oracle = json.loads((out / "oracle.json").read_text())
     assert {k: v["counts"] for k, v in rep.results.items()} == oracle
-    assert rep.facts["ballots"] == summary["ballots"]
+    assert rep.facts["ballots"] == summary["counted"] <= summary["ballots"]  # cast includes revotes; counted is one per voter
     assert not any(v.startswith("ACCEPTED") for v in summary["attacks_shard_1"].values())
 
 
@@ -108,6 +108,28 @@ def test_federation_swapped_shards_fail(federation, tmp_path):
     (bad / "shards" / "SYN-PC-002").rename(bad / "shards" / "SYN-PC-001")
     (bad / "shards" / "tmp").rename(bad / "shards" / "SYN-PC-002")
     assert {"shards.verified"} <= _failed(verify_federation(bad, workers=2))
+
+
+def test_federation_uses_one_national_key(federation):
+    out, summary = federation
+    rep = verify_federation(out, workers=2)
+    assert any(c.id == "national.key" and c.status == "PASS" for c in rep.checks)
+    keys = set()
+    for shard in (out / "shards").iterdir():
+        first_lines = (shard / "record" / "entries.jsonl").read_bytes().split(b"\n")
+        jk = next(json.loads(x) for x in first_lines if b'"type":"joint_key"' in x)
+        keys.add(jk["body"]["joint_public_key"])
+    assert keys == {summary["national_joint_key"]}  # one key, one share per trustee HSM
+
+
+def test_federation_shard_with_its_own_key_fails(federation, tmp_path):
+    """A shard run under a separate key ceremony is not part of the national election."""
+    out, _ = federation
+    bad = shutil.copytree(out, tmp_path / "f")
+    cer = json.loads((bad / "national" / "ceremony.json").read_text())
+    cer["joint_public_key"] = "5"
+    (bad / "national" / "ceremony.json").write_text(json.dumps(cer, sort_keys=True, separators=(",", ":")) + "\n")
+    assert "national.key" in _failed(verify_federation(bad, workers=2))
 
 
 def test_federation_altered_national_result_fails(federation, tmp_path):
@@ -132,9 +154,9 @@ def _record(tmp: Path, voters: int) -> Path:
             candidates_per_constituency=3,
             turnout=1.0,
             group="TEST-INSECURE-512-160",
-            rsa_bits=2048,
             workers=1,
             inject_attacks=False,
+            mix_batch=256,
         ),
     )
     return out / "record"
@@ -183,40 +205,66 @@ def box(tmp_path):
         "window": {"opens_at": iso(clock.now() - dt.timedelta(hours=1)), "closes_at": iso(clock.now() + dt.timedelta(hours=1))},
         "constituencies": [{"id": "C", "options": [{"id": "A"}, {"id": "NOTA"}]}],
     }
-    return BallotBox(tmp_path / "box.db", board, man, "mh", PublicKey(grp, grp.g_pow(5)), {}, clock)
+    return BallotBox(tmp_path / "box.db", board, man, "mh", PublicKey(grp, grp.g_pow(5)), clock, lambda c, t: True, max_per_tag=3)
 
 
-def _fake(token: str, alphas: list[str]) -> dict:
-    return {"credential": {"token": token, "signature": "1"}, "selections": [{"ciphertext": {"alpha": a, "beta": "1"}} for a in alphas], "constituency": "C"}
+def _fake(tag_alpha: str, alphas: list[str]) -> dict:
+    return {
+        "ballot": {
+            "tag": {"ciphertext": {"alpha": tag_alpha, "beta": "1"}},
+            "selections": [{"ciphertext": {"alpha": a, "beta": "1"}} for a in alphas],
+            "constituency": "C",
+        },
+        "tag": "x",
+        "link": {},
+    }
 
 
-def test_group_commit_enforces_uniqueness_within_and_across_batches(box):
-    t1, t2, t3 = (secrets.token_hex(32) for _ in range(3))
-    r = box.submit_batch([_fake(t1, ["a1", "a2"]), _fake(t1, ["a3", "a4"]), _fake(t2, ["a2", "a5"]), _fake(t3, ["a6", "a7"])], prechecked=True)
-    assert isinstance(r[0], dict) and r[1] == "CREDENTIAL_ALREADY_USED" and r[2] == "DUPLICATE_CIPHERTEXT" and isinstance(r[3], dict)
-    r2 = box.submit_batch([_fake(t1, ["b1", "b2"]), _fake(t2, ["b3", "b4"])], prechecked=True)
-    assert r2[0] == "CREDENTIAL_ALREADY_USED" and isinstance(r2[1], dict)  # t2's earlier attempt was rolled back cleanly
-    assert box.board.count("ballot") == 3 and box.reconcile()["consistent"]
+def test_group_commit_enforces_uniqueness_and_revote_limits(box):
+    t1, t2 = "aa", "bb"
+    r = box.submit_batch(
+        [_fake("t1", ["a1", "a2"]), _fake("t2", ["a3", "a4"]), _fake("t3", ["a2", "a5"]), _fake("t4", ["a6", "a7"])], prechecked_tags=[t1, t1, t2, t2]
+    )
+    assert isinstance(r[0], dict) and r[1]["revote"] == 2 and r[2] == "DUPLICATE_CIPHERTEXT" and r[3]["revote"] == 1
+    r2 = box.submit_batch([_fake("t5", ["b1"]), _fake("t6", ["b2"]), _fake("t7", ["b3"])], prechecked_tags=[t1, t1, t2])
+    assert r2[0]["revote"] == 3 and r2[1] == "TOO_MANY_REVOTES" and r2[2]["revote"] == 2  # rolled-back attempt left no trace
+    assert box.board.count("ballot") == 5 and box.reconcile()["consistent"]
+
+
+def test_identical_ballot_racing_in_one_batch_is_idempotent_only_under_its_own_tag(box):
+    """Both copies reach the database in the same batch (neither sees the other as a prior)."""
+    t1, t2 = "aa", "bb"
+    same = box.submit_batch([_fake("u1", ["c1"]), _fake("u1", ["c1"])], prechecked_tags=[t1, t1])
+    assert same[0]["seq"] == same[1]["seq"] and same[1].get("duplicate_submission") is True
+    copied = box.submit_batch([_fake("u2", ["c2"]), _fake("u2", ["c2"])], prechecked_tags=[t1, t2])
+    assert isinstance(copied[0], dict) and copied[1] == "DUPLICATE_CIPHERTEXT"  # a copy under another tag never gets the original's receipt
+    assert box.board.count("ballot") == 2 and box.reconcile()["consistent"]
 
 
 def test_sequencer_ingest_beats_largest_constituency_need(box):
-    """Largest seat at 150 crore electors, 100% turnout, design rate (busiest hour x headroom):
-    about 116 ballots/s (docs/scale/capacity.md). Require a 3x margin on this machine."""
+    """Largest seat at 150 crore electors, 100% turnout, 10% revotes, design rate
+    (busiest hour x headroom): about 128 ballots/s (docs/scale/capacity.md). Require a 3x margin."""
+    box.max_per_tag = 1000
     tmpl = {
-        "credential": {"token": "", "signature": "1"},
-        "constituency": "C",
-        "selections": [{"ciphertext": {"alpha": "", "beta": "f" * 512}, "proof": {"x": "f" * 3000}} for _ in range(16)],
+        "ballot": {
+            "tag": {"ciphertext": {"alpha": "", "beta": "f" * 512}, "proof": {"c": "f" * 64, "s": ["f" * 64] * 2}},
+            "constituency": "C",
+            "selections": [{"ciphertext": {"alpha": "", "beta": "f" * 512}, "proof": {"x": "f" * 3000}} for _ in range(16)],
+        },
+        "tag": "x",
+        "link": {},
     }
-    ballots = []
+    subs, tags = [], []
     for i in range(3072):
         b = copy.deepcopy(tmpl)
-        b["credential"]["token"] = secrets.token_hex(32)
-        for j, s in enumerate(b["selections"]):
+        b["ballot"]["tag"]["ciphertext"]["alpha"] = f"{i:x}-t"
+        for j, s in enumerate(b["ballot"]["selections"]):
             s["ciphertext"]["alpha"] = f"{i:x}-{j}"
-        ballots.append(b)
+        subs.append(b)
+        tags.append(secrets.token_hex(8) if i % 10 else "same")  # a tenth of ballots revote one tag
     t = time.perf_counter()
-    for i in range(0, len(ballots), 256):
-        box.submit_batch(ballots[i : i + 256], prechecked=True)
-    rate = len(ballots) / (time.perf_counter() - t)
-    assert box.board.count("ballot") == len(ballots)
-    assert rate > 3 * 116, f"{rate:.0f} ballots/s"
+    for i in range(0, len(subs), 256):
+        box.submit_batch(subs[i : i + 256], prechecked_tags=tags[i : i + 256])
+    rate = len(subs) / (time.perf_counter() - t)
+    assert box.board.count("ballot") == len(subs)
+    assert rate > 3 * 128, f"{rate:.0f} ballots/s"

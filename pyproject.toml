@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chunaviq"
-version = "0.1.0"
+version = "0.2.0"
 description = "Research prototype of an end-to-end verifiable, secret-ballot online election, with an independent verifier. Synthetic data only; not for binding elections."
 readme = "README.md"
 license = "Apache-2.0"
@@ -28,6 +28,7 @@ addopts = "-ra"
 markers = [
   "slow: long-running (10,000-voter election); run with -m slow",
   "scale: national-scale properties (constituency-size counting, federation, bounded memory, ingest); run with -m scale",
+  "rehearsal: a real election over HTTP under attack, end to end (minutes); run with -m rehearsal",
 ]
 
 [tool.ruff]

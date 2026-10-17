@@ -1,13 +1,13 @@
-.PHONY: install test deep scale scale-national capacity lint demo check-group site deploy web-install web-test web-dev
+.PHONY: install test deep scale scale-national capacity rehearsal-smoke rehearsal-peak lint demo check-group site deploy web-install web-test web-dev
 
 install:
 	pip install --require-hashes --no-deps -r requirements/runtime.txt -r requirements/dev.txt && pip install --no-deps --no-build-isolation -e .
 
 test:
-	pytest -m "not slow and not scale" -q
+	pytest -m "not slow and not scale and not rehearsal" -q
 
 deep:
-	HYPOTHESIS_PROFILE=deep pytest -m "not slow and not scale" -q
+	HYPOTHESIS_PROFILE=deep pytest -m "not slow and not scale and not rehearsal" -q
 
 scale:
 	pytest -m slow -q
@@ -17,6 +17,14 @@ scale-national:
 
 capacity:
 	chunaviq capacity
+
+rehearsal-smoke:
+	chunaviq rehearse smoke --out rehearsal/smoke
+
+# The largest constituency at its design rate (or as close as this machine allows), under attack, end to end.
+# Takes 1-2 hours on a 16-thread desktop and ~10 GB of disk. Outputs in rehearsal/shard-peak/.
+rehearsal-peak:
+	chunaviq rehearse shard-peak --out rehearsal/shard-peak
 
 lint:
 	ruff check src tests tools && ruff format --check src tests tools && python tools/scan_pii.py

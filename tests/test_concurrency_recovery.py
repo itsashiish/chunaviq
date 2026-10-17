@@ -6,14 +6,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from chunaviq.crypto.blind import blind, credential_message, unblind
-from chunaviq.crypto.encoding import from_hex, to_hex
+from chunaviq.crypto.encoding import to_hex
+from chunaviq.crypto.proofs import schnorr_prove
 from chunaviq.crypto.signing import RoleKey
 from chunaviq.election.administration import AdministrationError
 from chunaviq.election.ballot import BallotRejected
-from chunaviq.election.ballotbox import BallotBox
 from chunaviq.election.board import Board, BoardError
-from chunaviq.election.eligibility import EligibilityError
+from chunaviq.election.eligibility import EligibilityError, register_context
 from chunaviq_verify import verify_record
 from harness import CLOSES, Election
 
@@ -37,49 +36,60 @@ def _race(fn, n=THREADS):
 def test_concurrent_duplicate_ballot_submissions_record_exactly_one(election):
     """16 identical submissions racing (a device retrying): all get the same receipt,
     exactly one entry is recorded."""
-    b = election.credentialed(0).prepare("C1").ballot
-    election.box.check(b)
-    out = _race(lambda: election.box.submit(b, prechecked=True))
+    sub = election.sub(election.registered(0), "C1")
+    tag = election.box.precheck(sub)
+    out = _race(lambda: election.box.submit(sub, prechecked_tag=tag))
     assert all(r[0] == "ok" for r in out)
     assert len({(r[1]["tracking_code"], r[1]["seq"]) for r in out}) == 1
     assert sum(1 for r in out if not r[1].get("duplicate_submission")) == 1
     assert len(election.board.entries_of("ballot")) == 1
 
 
-def test_concurrent_different_ballots_same_credential(election):
-    d = election.credentialed(0)
-    ballots = [d.prepare("C1").ballot for _ in range(THREADS)]
-    it = iter(ballots)
+def test_concurrent_revotes_are_all_recorded_and_numbered(election):
+    """Different ballots under one tag are revotes: all are kept, numbered 1..n without gaps."""
+    d = election.registered(0)
+    subs = [election.sub(d, "C1") for _ in range(8)]
+    it = iter(subs)
     lock = threading.Lock()
 
     def submit():
         with lock:
-            b = next(it)
-        return election.box.submit(b)
+            s = next(it)
+        return election.box.submit(s)
 
-    out = _race(submit)
-    assert sum(r[0] == "ok" for r in out) == 1
+    out = _race(submit, n=8)
+    assert all(r[0] == "ok" for r in out)
+    assert sorted(r[1]["revote"] for r in out) == list(range(1, 9))
 
 
-def test_concurrent_credential_requests_issue_exactly_one(election):
+def test_concurrent_registrations_of_one_voter_keep_one_valid_tag(election):
+    """Racing registrations for the same roll entry: every one that succeeds bumps the
+    generation; exactly one tag ends up valid."""
     v = election.roll[0]
-    pub = election.elig.issuer_keys()[v.constituency]
+    d = election.device(0)
+    sessions = [d.authenticate(election.elig, "aadhaar-otp") for _ in range(6)]
+    it = iter(sessions)
+    lock = threading.Lock()
 
-    def req():
-        msg = credential_message("SYN-TEST", v.constituency, b"\x05" * 32)
-        bl, _ = blind(pub, msg)
-        return election.elig.issue_credential(v.voter_id, v.auth_secret, to_hex(bl))
+    def reg():
+        with lock:
+            s = next(it)
+        t = election.grp.rand_scalar()
+        T = election.grp.g_pow(t)
+        return election.elig.register(s, to_hex(T), schnorr_prove(election.grp, t, T, register_context("SYN-TEST", v.constituency, s)).to_dict())
 
-    out = _race(req)
-    assert sum(r[0] == "ok" for r in out) == 1
-    assert {r[1] for r in out if r[0] == "rejected"} == {"ALREADY_ISSUED"}
+    out = _race(reg, n=6)
+    gens = sorted(r[1]["generation"] for r in out if r[0] == "ok")
+    assert gens == list(range(1, len(gens) + 1)) and len(gens) >= 1
+    s = election.elig.registration_summary()["constituencies"][v.constituency]
+    assert s["registered"] == 1 and len(s["valid_tags"]) == 1
 
 
 def test_concurrent_distinct_voters_all_accepted(election):
-    devices = [election.credentialed(i) for i in range(8)]
-    ballots = [d.prepare(election.options[d.voter.constituency][1]).ballot for d in devices]
+    devices = [election.registered(i) for i in range(8)]
+    subs = [election.sub(d, election.options[d.voter.constituency][1]) for d in devices]
     with ThreadPoolExecutor(8) as ex:
-        list(ex.map(election.box.submit, ballots))
+        list(ex.map(election.box.submit, subs))
     assert election.box.reconcile()["consistent"] and len(election.board.entries_of("ballot")) == 8
 
 
@@ -108,36 +118,23 @@ def test_board_refuses_forged_checkpoint(election):
         Board(election.record, "SYN-TEST", other, election.clock, durable=False)
 
 
-def test_index_rebuilt_after_database_loss_still_blocks_reuse(election, tmp_path):
-    d = election.credentialed(0)
-    election.box.submit(d.prepare("C1").ballot)
-    fresh = BallotBox(tmp_path / "new.db", election.board, election.manifest, election.mhash, election.pk, election.elig.issuer_keys(), election.clock)
-    assert fresh.reconcile()["consistent"] is False
-    assert fresh.rebuild_index() == 1 and fresh.reconcile()["consistent"]
-    with pytest.raises(BallotRejected) as ei:
-        fresh.submit(d.prepare("C2").ballot)
-    assert ei.value.code == "CREDENTIAL_ALREADY_USED"
-
-
-def test_crash_between_board_append_and_index_commit(election):
-    """The board is authoritative: if the process dies after the ballot reached
-    the board but before the index committed, recovery marks the token used."""
-    d = election.credentialed(0)
-    b = d.prepare("C1").ballot
+def test_reconcile_detects_board_index_divergence(election):
+    """The board never shows tags, so the ballot box index cannot be rebuilt from it;
+    a crash between board append and index commit must at least be detected."""
+    d = election.registered(0)
+    sub = election.sub(d, "C1")
     from chunaviq.election.ballot import tracking_code
 
-    election.board.append("ballot", {"tracking_code": tracking_code(b), "ballot": b})  # "crash" before index
+    election.board.append("ballot", {"tracking_code": tracking_code(sub["ballot"]), "ballot": sub["ballot"]})  # "crash" before index
     assert not election.box.reconcile()["consistent"]
-    election.box.rebuild_index()
-    with pytest.raises(BallotRejected):
-        election.box.submit(d.prepare("C2").ballot)
 
 
 def test_tally_fails_safely_without_quorum(election):
     election.vote(0)
     election.clock.set(CLOSES)
     election.admin.close({})
-    election.admin.publish_participation(election.elig.participation_summary())
+    election.admin.publish_registration(election.elig.registration_entries(), {c: set(election.elig.valid_tags(c)) for c in election.elig.constituencies})
+    election.box.finalize(election.admin.valid_tags)
     for h in election.hosts[:2]:  # 3 trustees, threshold 2 -> only 1 left
         h.available = False
     with pytest.raises(AdministrationError):
@@ -154,16 +151,12 @@ def test_tally_succeeds_with_exactly_threshold_trustees(tmp_path):
     assert verify_record(e.record).verified
 
 
+def test_finalization_refused_while_open(election):
+    with pytest.raises(BallotRejected):
+        election.box.finalize({})
+
+
 def test_backup_restore_verifies_identically(finished, tmp_path):
     dst = shutil.copytree(finished.record, tmp_path / "restored")
     a, b = verify_record(finished.record), verify_record(dst)
     assert a.verified and b.verified and a.facts["final_root"] == b.facts["final_root"]
-
-
-def test_unblind_rejects_corrupted_issuer_response(election):
-    v = election.roll[0]
-    pub = election.elig.issuer_keys()[v.constituency]
-    bl, st = blind(pub, credential_message("SYN-TEST", v.constituency, b"\x09" * 32))
-    resp = election.elig.issue_credential(v.voter_id, v.auth_secret, to_hex(bl))
-    with pytest.raises(ValueError):
-        unblind(pub, st, from_hex(resp["blind_signature"]) + 1)

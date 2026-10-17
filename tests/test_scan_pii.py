@@ -19,6 +19,8 @@ def test_identity_shaped_values_are_flagged():
     assert _hits(f"id {twelve}.") == {"aadhaar-like"}  # sentence-ending full stop
     assert _hits(f"call +91 {ten}") == {"mobile-like"}
     assert _hits("card " + "ABC" + "1234567") == {"epic-like"}
+    assert _hits("pan " + "ABCDE" + "1234" + "F") == {"pan-like"}
+    assert _hits("syn-pan-0000042 syn-uid-0000042") == set()
 
 
 def test_decimal_numbers_are_not_flagged():
