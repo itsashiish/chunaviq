@@ -1,16 +1,22 @@
-.PHONY: install test deep scale lint demo check-group site deploy web-install web-test web-dev
+.PHONY: install test deep scale scale-national capacity lint demo check-group site deploy web-install web-test web-dev
 
 install:
 	pip install --require-hashes --no-deps -r requirements/runtime.txt -r requirements/dev.txt && pip install --no-deps --no-build-isolation -e .
 
 test:
-	pytest -m "not slow" -q
+	pytest -m "not slow and not scale" -q
 
 deep:
-	HYPOTHESIS_PROFILE=deep pytest -m "not slow" -q
+	HYPOTHESIS_PROFILE=deep pytest -m "not slow and not scale" -q
 
 scale:
 	pytest -m slow -q
+
+scale-national:
+	pytest -m scale -q
+
+capacity:
+	chunaviq capacity
 
 lint:
 	ruff check src tests tools && ruff format --check src tests tools && python tools/scan_pii.py

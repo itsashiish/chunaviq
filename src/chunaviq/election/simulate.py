@@ -65,6 +65,13 @@ class SimConfig:
     election_id: str = "SYN-2026-GE-001"
     checkpoint_every: int = 1000
     durable: bool = True
+    batch_size: int = 256  # group commit: ballots per transaction + fsync
+    # --- set by the federation runner when this election is one constituency shard
+    first_constituency: int = 1
+    first_voter: int = 1
+    constituency_prefix: str = "SYN-AC"
+    federation: dict | None = None
+    trustee_raw_keys: list[bytes] | None = None
 
 
 # ------------------------------------------------------------------ worker side
@@ -128,9 +135,17 @@ def run(out: Path, cfg: SimConfig) -> dict:
     clock = FakeClock(opens - dt.timedelta(days=2))
 
     officer, operator = RoleKey("officer"), RoleKey("board")
-    hosts = [TrusteeHost(i + 1, grp, cfg.threshold) for i in range(cfg.trustees)]
-    cons = make_constituencies(cfg.constituencies, cfg.candidates_per_constituency, split_eligible(cfg.voters, cfg.constituencies, cfg.seed), cfg.seed)
-    roll = make_roll(cons)
+    raw = cfg.trustee_raw_keys or [None] * cfg.trustees
+    hosts = [TrusteeHost(i + 1, grp, cfg.threshold, raw_key=raw[i]) for i in range(cfg.trustees)]
+    cons = make_constituencies(
+        cfg.constituencies,
+        cfg.candidates_per_constituency,
+        split_eligible(cfg.voters, cfg.constituencies, cfg.seed),
+        cfg.seed,
+        start=cfg.first_constituency,
+        prefix=cfg.constituency_prefix,
+    )
+    roll = make_roll(cons, start=cfg.first_voter)
     elig = EligibilityAuthority(out / "private" / "eligibility.db", cfg.election_id, [c.id for c in cons], clock, cfg.rsa_bits)
     elig.load_roll(roll)
 
@@ -149,6 +164,7 @@ def run(out: Path, cfg: SimConfig) -> dict:
         board_key=operator.public_hex,
         eligibility_key=elig.key.public_hex,
         software_version=__version__,
+        federation=cfg.federation,
     )
     mhash = admin.publish_manifest(manifest)
 
@@ -183,26 +199,39 @@ def run(out: Path, cfg: SimConfig) -> dict:
     ctx = mp.get_context("spawn")
     init = (cfg.group, to_hex(pk.K), mhash, cfg.election_id, options, {c: k.to_dict() for c, k in elig.issuer_keys().items()})
     s = time.perf_counter()
-    with ctx.Pool(cfg.workers, initializer=_winit, initargs=init) as pool:
-        prepared = pool.map(_wprepare, jobs, chunksize=64)
+    if cfg.workers <= 1:  # inline: used when shards themselves run in parallel processes
+        _winit(*init)
+        prepared = [_wprepare(j) for j in jobs]
         timings["client_encryption_s"] = time.perf_counter() - s
         s = time.perf_counter()
-        verdicts = pool.map(_wcheck, [b for b, _ in prepared], chunksize=64)
+        verdicts = [_wcheck(b) for b, _ in prepared]
         timings["server_verification_s"] = time.perf_counter() - s
+    else:
+        with ctx.Pool(cfg.workers, initializer=_winit, initargs=init) as pool:
+            prepared = pool.map(_wprepare, jobs, chunksize=64)
+            timings["client_encryption_s"] = time.perf_counter() - s
+            s = time.perf_counter()
+            verdicts = pool.map(_wcheck, [b for b, _ in prepared], chunksize=64)
+            timings["server_verification_s"] = time.perf_counter() - s
     audits = Counter("passed" if a else "failed" for _, a in prepared if a is not None)
 
     s = time.perf_counter()
     voting_span = (closes - opens).total_seconds() - 600
     accepted = 0
-    for i, ((ballot, _), code) in enumerate(zip(prepared, verdicts, strict=True)):
-        clock.set(opens + dt.timedelta(seconds=voting_span * i / max(1, len(prepared))))
+    for code in verdicts:
         if code is not None:
             box.rejections[code] += 1
-            continue
-        box.submit(ballot, prechecked=True)
-        accepted += 1
-        if accepted % cfg.checkpoint_every == 0:
+    valid = [b for (b, _), code in zip(prepared, verdicts, strict=True) if code is None]
+    since_cp = 0
+    for start in range(0, len(valid), cfg.batch_size):
+        clock.set(opens + dt.timedelta(seconds=voting_span * start / max(1, len(valid))))
+        results = box.submit_batch(valid[start : start + cfg.batch_size], prechecked=True)
+        n = sum(isinstance(r, dict) for r in results)
+        accepted += n
+        since_cp += n
+        if since_cp >= cfg.checkpoint_every:
             board.checkpoint()
+            since_cp = 0
     timings["acceptance_s"] = time.perf_counter() - s
 
     # -------------------------------------------------------- attacks
@@ -218,7 +247,13 @@ def run(out: Path, cfg: SimConfig) -> dict:
 
         first = prepared[0][0]
         dev0 = devices[0]
-        attempt("replay_identical_ballot", lambda: box.submit(first))
+        before = board.count("ballot")
+        replay = box.submit(first)  # a device retrying after a dropped connection
+        attack_results["replay_identical_ballot"] = (
+            "idempotent: original receipt returned, not counted again"
+            if replay.get("duplicate_submission") and board.count("ballot") == before
+            else "ACCEPTED (FAILURE)"
+        )
         attempt("reuse_credential_new_ballot", lambda: box.submit(dev0.prepare(options[dev0.voter.constituency][0]).ballot))
         forged = json.loads(json.dumps(first))
         forged["credential"] = {"token": secrets.token_hex(32), "signature": to_hex(secrets.randbits(cfg.rsa_bits - 8) | 1)}
@@ -239,7 +274,7 @@ def run(out: Path, cfg: SimConfig) -> dict:
     # -------------------------------------------------------- seal + tally
     clock.set(closes)
     elig.set_accepting(False)
-    late = json.loads(json.dumps(first)) if prepared else None
+    late = devices[0].prepare(options[devices[0].voter.constituency][0]).ballot if devices and cfg.inject_attacks else None  # a NEW vote after close
     if late is not None and cfg.inject_attacks:
         try:
             box.submit(late)
@@ -260,7 +295,7 @@ def run(out: Path, cfg: SimConfig) -> dict:
     (out / "oracle.json").write_text(json.dumps(oracle, indent=2, sort_keys=True))
     timings["total_s"] = time.perf_counter() - t0
     summary = {
-        "config": asdict(cfg),
+        "config": {k: v for k, v in asdict(cfg).items() if k != "trustee_raw_keys"},  # never persist private keys
         "eligible_voters": len(roll),
         "credentials_issued": len(devices),
         "ballots_accepted": accepted,
@@ -269,7 +304,7 @@ def run(out: Path, cfg: SimConfig) -> dict:
         "rejections_by_reason": dict(box.rejections),
         "reconciliation": recon,
         "results": results,
-        "record_entries": len(board.entries),
+        "record_entries": board.size,
         "final_checkpoint": board.checkpoints[-1]["root"],
         "manifest_hash": mhash,
         "timings": {k: round(v, 2) for k, v in timings.items()},

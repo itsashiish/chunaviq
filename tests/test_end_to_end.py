@@ -27,7 +27,8 @@ def sim(tmp_path_factory):
 def test_every_injected_attack_is_rejected(sim):
     _, s = sim
     assert len(s["attacks"]) >= 9
-    assert all(v.startswith("rejected") for v in s["attacks"].values()), s["attacks"]
+    assert not any(v.startswith("ACCEPTED") for v in s["attacks"].values()), s["attacks"]
+    assert s["attacks"]["replay_identical_ballot"].startswith("idempotent")
 
 
 def test_simulation_record_verifies_and_matches_ground_truth(sim):
@@ -86,7 +87,7 @@ def test_scale_10000_voters(tmp_path):
     voters = int(os.environ.get("CHUNAVIQ_SCALE_VOTERS", "10000"))
     s = run(tmp_path / "scale", SimConfig(voters=voters))
     assert s["eligible_voters"] == voters
-    assert all(v.startswith("rejected") for v in s["attacks"].values())
+    assert not any(v.startswith("ACCEPTED") for v in s["attacks"].values())
     rep = verify_record(tmp_path / "scale" / "record", expect_manifest_hash=s["manifest_hash"])
     assert rep.verified
     oracle = json.loads((tmp_path / "scale" / "oracle.json").read_text())

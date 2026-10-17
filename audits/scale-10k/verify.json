@@ -7,7 +7,7 @@
       "title": "Entries are canonical and contiguously numbered"
     },
     {
-      "detail": "cf73bb444f2d5bf900340518c1efb2e42ba03d3fb700e5eccd942d24d1695639",
+      "detail": "7f6150bd5e710d1b744f722ea237dcf22f64925d7b73d5cf9adb78ed3ea38592",
       "id": "manifest.hash",
       "status": "PASS",
       "title": "Manifest hash matches manifest content"
@@ -19,7 +19,7 @@
       "title": "Manifest signed by the election officer key it declares"
     },
     {
-      "detail": "expected cf73bb444f2d5bf900340518c1efb2e42ba03d3fb700e5eccd942d24d1695639",
+      "detail": "expected 7f6150bd5e710d1b744f722ea237dcf22f64925d7b73d5cf9adb78ed3ea38592",
       "id": "manifest.pinned",
       "status": "PASS",
       "title": "Manifest hash equals the independently obtained value"
@@ -154,19 +154,19 @@
   "facts": {
     "election_id": "SYN-2026-GE-001",
     "entries": 6882,
-    "final_root": "3c8fcf9e1a1bef009046cdc51d48aaf3bf83216c505af1e3bfc7d8613bb5395f",
-    "manifest_hash": "cf73bb444f2d5bf900340518c1efb2e42ba03d3fb700e5eccd942d24d1695639",
+    "final_root": "117e5c720c557fe0ed3c4383c52091492d2b938dcd56563d29a6ecef00bbb2cc",
+    "manifest_hash": "7f6150bd5e710d1b744f722ea237dcf22f64925d7b73d5cf9adb78ed3ea38592",
     "notice": "SYNTHETIC RESEARCH ELECTION. All voters, candidates, parties and results are artificial. This record has no legal effect and was not produced under the authority of the Election Commission of India or any State Election Commission.",
     "rejections_by_reason": {
       "BAD_CREDENTIAL": 2,
       "BAD_LIMIT_PROOF": 1,
       "BAD_SELECTION_PROOF": 1,
-      "CREDENTIAL_ALREADY_USED": 2,
+      "CREDENTIAL_ALREADY_USED": 1,
       "OUTSIDE_VOTING_WINDOW": 1
     },
     "software": {
       "name": "chunaviq",
-      "source_digest": "88b1000fbcce8b25105eeb54b38e397a8babee49bdfebb9b30d6c4d57393cae3",
+      "source_digest": "46ccb1dd9fd8d43ef23597ce804fe6c95582db08dda6d7b540d12c1a9e67747b",
       "version": "0.1.0"
     },
     "title": "Synthetic Assembly General Election (research simulation)",

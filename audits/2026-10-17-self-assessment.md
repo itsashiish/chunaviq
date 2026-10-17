@@ -1,7 +1,7 @@
 # Self-assessment — 2026-10-17 (v0.1.0)
 
 **Type:** internal review by the authors. **Not** an independent audit; it does not satisfy the stage-04 exit criterion.
-**Source digest:** `88b1000fbcce8b25105eeb54b38e397a8babee49bdfebb9b30d6c4d57393cae3`
+**Source digest:** `46ccb1dd9fd8d43ef23597ce804fe6c95582db08dda6d7b540d12c1a9e67747b`
 
 ## Findings
 
@@ -18,24 +18,29 @@
 | F-009 | Low | Mitigated | The manifest declares its own role keys, so a wholly substituted record is self-consistent. | Verifier warns unless `--expect-manifest-hash` is supplied; audit step B3 publishes the hash out-of-band. |
 | F-010 | Low | Open | Constituencies with very few ballots, or unanimous results, reveal individual votes through aggregates. | Document a minimum reporting-unit size for any pilot. |
 | F-012 | Low | Open (accepted for demo) | The browser engine uses JavaScript `BigInt`, which is not constant-time; a hostile script on the same page could in principle learn secrets from timing. | Acceptable for a single-tab demo with a strict Content-Security-Policy and no third-party scripts. A real client would need constant-time arithmetic (e.g. WebAssembly). |
+| F-013 | High | **Fixed** | Board, tally and both verifiers held the entire record in memory; a large constituency at national scale (~330 GB) could not be sequenced or verified. | Streaming board/tally/verifier with an on-disk duplicate index; memory now flat in record size (`test_verifier_memory_does_not_grow_with_record_size`). The TypeScript verifier is for the browser demo and still loads whole records. |
+| F-014 | Medium | **Fixed** | Tally recovered counts by linear search, hours per option at constituency scale. | Baby-step giant-step in all implementations. |
+| F-015 | Medium | **Fixed** | A device retrying after a dropped connection was refused and lost its receipt. | Idempotent resubmission. |
+| F-016 | Low | **Fixed** | The simulator crashed when attacks were disabled, and the fuzz test could generate a no-op mutation. | Both corrected; found while building the federation. |
+| F-017 | High | Open | Remote identity verification for 150 crore electors is unsolved in this design (OTP alone is weak; Aadhaar needs legal authorisation). | Out of scope for software; see `docs/scale.md`. |
 | F-011 | Info | Accepted | `random.Random` is used for synthetic choices and roll sizes; all key material, nonces and tokens use `secrets`. | Lint rule S311 suppressed with that justification. |
 
 ## Evidence summary
 
 * `pytest -m "not slow"`: all tests pass on Python 3.13 with the gmpy2 backend (CI matrix also runs 3.11/3.12 and the pure-Python backend).
 * Deep property-based profile (500 examples per property): see CI weekly run.
-* 10,000-voter election: [`scale-10k/`](scale-10k/) — independently **VERIFIED** with manifest and source-digest pins; published counts equal the simulation's ground truth in all 5 constituencies; all 9 injected attacks rejected with the expected reason codes; 149 Benaloh challenges passed; index/board reconciliation consistent.
+* 10,000-voter election: [`scale-10k/`](scale-10k/) — independently **VERIFIED** with manifest and source-digest pins; published counts equal the simulation's ground truth in all 5 constituencies; all injected attacks refused with the expected reason codes, and an identical replay answered idempotently with its original receipt; 149 Benaloh challenges passed; index/board reconciliation consistent.
 
 ## Capacity (2 vCPU, Python 3.13, gmpy2)
 
 | Stage | 6,837 ballots (10,000 eligible) |
 |---|---|
 | Key ceremony (5 trustees, k = 3) | 0.3 s |
-| Credential issuance (RSA-3072 blind signing) | 38 s |
-| Client-side encryption + proofs (5 options) | 85 s (≈ 25 ms per ballot per core) |
-| Server-side proof verification | 122 s (≈ 36 ms per ballot per core) |
-| Sequential acceptance + board append (fsync each) | 12 s |
-| Threshold tally | 2.8 s |
+| Credential issuance (RSA-3072 blind signing) | 36 s |
+| Client-side encryption + proofs (5 options) | 113 s (≈ 25 ms per ballot per core) |
+| Server-side proof verification | 123 s |
+| Sequential acceptance + board append (group commit, 256 per fsync) | 4.4 s |
+| Threshold tally | 2.0 s |
 | **Independent verification of the whole record** | **111 s** |
 | Public record size | 128 MB (6,882 entries) |
 

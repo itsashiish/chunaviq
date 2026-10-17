@@ -36,6 +36,15 @@ Attackers may have money, expertise, insider access, or control of a voter's dev
 | Shared defect between election code and verifier | Separate package, no imports, own constants, re-derived group | I12 tests | Same author, same language, same spec. A second verifier written by a different team in a different language is the next milestone. |
 | Small-subgroup / malformed elements | Membership checks on every challenge-exponentiated value; range checks on commitments | `test_is_element_rejects_small_order_and_out_of_range`, `test_chaum_pedersen` | — |
 
+## National scale
+
+| Threat | Control | Residual |
+|---|---|---|
+| National officer drops or substitutes a constituency | Shard set fixed in the signed national manifest; verifier requires every declared shard, each bound by manifest hash, keys and final root | None, if observers pin the national manifest hash |
+| One constituency's systems compromised | Separate key ceremony, credential key, sequencer and record per shard; compromise does not spread | That constituency's result |
+| Week-long window | Group commit, idempotent retries, standby sequencers | Keys are live for longer; voters can be coerced for longer; DoS has longer to work |
+| Traffic analysis across 150 crore voters | Hour-bucketed timestamps | Arrival order still links devices to ballots for a network-wide observer (F-005) |
+
 ## The browser demo
 
 The demo at chunaviq.oglic.com runs every role in one tab so a visitor can watch them interact. It therefore demonstrates the *mechanics* and the *evidence*, not the separation of trust: whoever controls that tab controls every role. Its records are still independently checkable, and its cheating and tampering experiments use the real checks.

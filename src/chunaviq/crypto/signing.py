@@ -15,10 +15,18 @@ SIG_DOMAIN = b"chunaviq/v1/signed-body\x00"
 
 
 class RoleKey:
-    def __init__(self, role: str) -> None:
+    def __init__(self, role: str, raw: bytes | None = None) -> None:
         self.role = role
-        self._sk = Ed25519PrivateKey.generate()
+        self._sk = Ed25519PrivateKey.from_private_bytes(raw) if raw is not None else Ed25519PrivateKey.generate()
         self.public_hex = self._sk.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
+
+    def private_bytes(self) -> bytes:
+        """Raw key bytes, so one role key can sign in several shard processes.
+        In a deployment this would stay inside an HSM; the simulator passes it to
+        child processes it spawns itself."""
+        from cryptography.hazmat.primitives.serialization import NoEncryption, PrivateFormat
+
+        return self._sk.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
 
     def sign_body(self, body: dict) -> dict:
         """Return body + {"signer", "signature"}; the signature covers every other field."""

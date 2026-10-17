@@ -79,6 +79,7 @@ def build_manifest(
     board_key: str,
     eligibility_key: str,
     software_version: str,
+    federation: dict | None = None,
 ) -> dict:
     for c in constituencies:
         ids = c.option_ids
@@ -90,7 +91,7 @@ def build_manifest(
         raise ValueError("duplicate constituency id")
     if not 1 <= threshold <= len(trustee_keys):
         raise ValueError("threshold must satisfy 1 <= k <= n")
-    return {
+    out = {
         "spec_version": "chunaviq-record/1",
         "election_id": election_id,
         "title": title,
@@ -106,6 +107,9 @@ def build_manifest(
         "keys": {"officer": officer_key, "board": board_key, "eligibility": eligibility_key},
         "software": {"name": "chunaviq", "version": software_version, "source_digest": source_digest()},
     }
+    if federation is not None:
+        out["federation"] = federation
+    return out
 
 
 def manifest_hash(manifest: dict) -> str:

@@ -199,7 +199,7 @@ export class DemoElection {
   manifest!: Body;
   mh = "";
   optionIds: string[] = OPTIONS.map((o) => o.id);
-  usedTokens = new Set<string>();
+  usedTokens = new Map<string, { tracking_code: string; seq: number }>();
   usedAlphas = new Set<string>();
   rejections: Record<string, number> = {};
   opensAt!: Date;
@@ -284,8 +284,11 @@ export class DemoElection {
     if (t < this.opensAt.getTime() || t >= this.closesAt.getTime()) throw new Rejected("OUTSIDE_VOTING_WINDOW");
   }
 
-  submit(ballot: Ballot, prechecked = false): { tracking_code: string; seq: number } {
+  submit(ballot: Ballot, prechecked = false): { tracking_code: string; seq: number; duplicate_submission?: boolean } {
     try {
+      // Idempotent retry: the exact same ballot gets its original receipt, and is not recorded twice.
+      const prior = this.usedTokens.get(ballot?.credential?.token);
+      if (prior && prior.tracking_code === trackingCode(ballot)) return { ...prior, duplicate_submission: true };
       this.gate();
       if (!prechecked) checkBallot(ballot, this.boxCtx);
       const tok = ballot.credential.token;
@@ -294,7 +297,7 @@ export class DemoElection {
       if (alphas.some((a) => this.usedAlphas.has(a)) || new Set(alphas).size !== alphas.length) throw new Rejected("DUPLICATE_CIPHERTEXT");
       const tc = trackingCode(ballot);
       const entry = this.board.append("ballot", { tracking_code: tc, ballot: ballot as unknown as Json });
-      this.usedTokens.add(tok);
+      this.usedTokens.set(tok, { tracking_code: tc, seq: entry.seq });
       alphas.forEach((a) => this.usedAlphas.add(a));
       return { tracking_code: tc, seq: entry.seq };
     } catch (e) {

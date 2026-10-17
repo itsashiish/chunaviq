@@ -99,6 +99,10 @@ describe("browser election end to end", () => {
       }
     };
     expect(code(() => e.submit(devices[0].prepare("C2").ballot))).toBe("CREDENTIAL_ALREADY_USED");
+    const firstBallot = e.board.of("ballot")[0].body.ballot as never;
+    const before = e.board.of("ballot").length;
+    expect(e.submit(firstBallot).duplicate_submission).toBe(true); // identical retry: same receipt, not counted again
+    expect(e.board.of("ballot").length).toBe(before);
     expect(code(() => devices[1].obtainCredential())).toBe("ALREADY_ISSUED");
     expect(code(() => e.device("syn-v-9999999"))).toBe("NOT_ON_ROLL");
     const marked = { ...devices[2].prepare("C1").ballot, marker: "voter-3" };

@@ -156,6 +156,30 @@ def roots_at(leaves: list[bytes], sizes: set[int]) -> dict[int, bytes]:
     return out
 
 
+class StreamingRoots:
+    """RFC 6962 roots of chosen prefixes, fed one leaf at a time: O(log n) memory."""
+
+    def __init__(self, sizes: set[int]) -> None:
+        self.sizes = sizes
+        self.roots: dict[int, bytes] = {0: _h(b"")} if 0 in sizes else {}
+        self._stack: list[tuple[int, bytes]] = []
+        self._n = 0
+
+    def add(self, lf: bytes) -> None:
+        st = self._stack
+        st.append((0, lf))
+        while len(st) >= 2 and st[-1][0] == st[-2][0]:
+            hgt, r = st.pop()
+            _, left = st.pop()
+            st.append((hgt + 1, _h(b"\x01" + left + r)))
+        self._n += 1
+        if self._n in self.sizes:
+            acc = st[-1][1]
+            for _, hsh in reversed(st[:-1]):
+                acc = _h(b"\x01" + hsh + acc)
+            self.roots[self._n] = acc
+
+
 def inclusion_ok(leaf_h: bytes, index: int, size: int, path: list[bytes], root: bytes) -> bool:
     if index >= size:
         return False

@@ -5,7 +5,7 @@
     "forged_credential": "rejected: BAD_CREDENTIAL",
     "ineligible_person_requests_credential": "rejected: NOT_ON_ROLL",
     "overvote_two_selections": "rejected: BAD_LIMIT_PROOF",
-    "replay_identical_ballot": "rejected: CREDENTIAL_ALREADY_USED",
+    "replay_identical_ballot": "idempotent: original receipt returned, not counted again",
     "reuse_credential_new_ballot": "rejected: CREDENTIAL_ALREADY_USED",
     "second_credential_same_voter": "rejected: ALREADY_ISSUED",
     "tampered_ciphertext": "rejected: BAD_SELECTION_PROOF"
@@ -15,12 +15,17 @@
     "passed": 149
   },
   "config": {
+    "batch_size": 256,
     "benaloh_audit_rate": 0.02,
     "candidates_per_constituency": 4,
     "checkpoint_every": 1000,
     "constituencies": 5,
+    "constituency_prefix": "SYN-AC",
     "durable": true,
     "election_id": "SYN-2026-GE-001",
+    "federation": null,
+    "first_constituency": 1,
+    "first_voter": 1,
     "group": "CHUNAVIQ-2048-256-V1",
     "inject_attacks": true,
     "rsa_bits": 3072,
@@ -33,8 +38,8 @@
   },
   "credentials_issued": 6837,
   "eligible_voters": 10000,
-  "final_checkpoint": "3c8fcf9e1a1bef009046cdc51d48aaf3bf83216c505af1e3bfc7d8613bb5395f",
-  "manifest_hash": "cf73bb444f2d5bf900340518c1efb2e42ba03d3fb700e5eccd942d24d1695639",
+  "final_checkpoint": "117e5c720c557fe0ed3c4383c52091492d2b938dcd56563d29a6ecef00bbb2cc",
+  "manifest_hash": "7f6150bd5e710d1b744f722ea237dcf22f64925d7b73d5cf9adb78ed3ea38592",
   "reconciliation": {
     "board_ballots": 6837,
     "consistent": true,
@@ -45,7 +50,7 @@
     "BAD_CREDENTIAL": 2,
     "BAD_LIMIT_PROOF": 1,
     "BAD_SELECTION_PROOF": 1,
-    "CREDENTIAL_ALREADY_USED": 2,
+    "CREDENTIAL_ALREADY_USED": 1,
     "OUTSIDE_VOTING_WINDOW": 1
   },
   "results": {
@@ -76,12 +81,12 @@
     }
   },
   "timings": {
-    "acceptance_s": 11.78,
-    "client_encryption_s": 84.5,
-    "credential_issuance_s": 38.07,
-    "key_ceremony_s": 0.24,
-    "server_verification_s": 122.24,
-    "tally_s": 2.8,
-    "total_s": 261.22
+    "acceptance_s": 4.36,
+    "client_encryption_s": 113.38,
+    "credential_issuance_s": 35.57,
+    "key_ceremony_s": 0.27,
+    "server_verification_s": 123.33,
+    "tally_s": 2.0,
+    "total_s": 280.11
   }
 }

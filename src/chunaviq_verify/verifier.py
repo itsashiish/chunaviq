@@ -14,13 +14,18 @@ import hashlib
 import json
 import multiprocessing as mp
 import os
-from collections import Counter
+import sqlite3
+import tempfile
+from collections import Counter, deque
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, dataclass, field
+from math import isqrt
 from pathlib import Path
 
 from .groups import APPROVED_GROUPS
 from .vmath import (
     G,
+    StreamingRoots,
     challenge,
     cjson,
     consistency_ok,
@@ -30,7 +35,6 @@ from .vmath import (
     inclusion_ok,
     leaf,
     powmod,
-    roots_at,
     rsa_fdh_ok,
     schnorr_ok,
     zero_or_one_ok,
@@ -176,25 +180,32 @@ def verify_record(
 
 
 def _verify(d: Path, rep: Report, pin: str | None, allow_insecure: bool, pin_src: str | None, workers: int | None) -> None:
-    # ---------------------------------------------------------------- 1. load
-    raw = (d / "entries.jsonl").read_bytes()
-    lines = raw.split(b"\n")
-    if lines and lines[-1] == b"":
-        lines.pop()
-    entries = []
-    for i, ln in enumerate(lines):
-        e = json.loads(ln)
-        if cjson(e) != ln or e.get("seq") != i:
-            rep.add("record.canonical", "Entries are canonical and contiguously numbered", False, f"entry {i}")
-            return
-        entries.append(e)
-    rep.add("record.canonical", "Entries are canonical and contiguously numbered", True, f"{len(entries)} entries")
-    rep.facts["entries"] = len(entries)
+    # ---------------------------------------------------------------- 1. stream pass 1: canonical form + Merkle roots
+    # Constant memory: entries are read line by line; only the Merkle frontier
+    # (O(log n) hashes) and the roots at checkpoint sizes are kept.
+    cps = [json.loads(x) for x in (d / "checkpoints.jsonl").read_bytes().split(b"\n") if x]
+    roots_stream = StreamingRoots({cp.get("tree_size", -1) for cp in cps})
+    first: dict | None = None
+    count = 0
+    with open(d / "entries.jsonl", "rb") as fh:
+        for i, raw in enumerate(fh):
+            ln = raw[:-1] if raw.endswith(b"\n") else raw
+            e = json.loads(ln)
+            if cjson(e) != ln or e.get("seq") != i:
+                rep.add("record.canonical", "Entries are canonical and contiguously numbered", False, f"entry {i}")
+                return
+            if i == 0:
+                first = e
+            roots_stream.add(leaf(ln))
+            count += 1
+    roots = roots_stream.roots
+    rep.add("record.canonical", "Entries are canonical and contiguously numbered", True, f"{count} entries")
+    rep.facts["entries"] = count
 
     # ---------------------------------------------------------------- 2. manifest
-    if not entries or entries[0]["type"] != "manifest":
+    if first is None or first["type"] != "manifest":
         raise StructureError("first entry must be the manifest")
-    mb = entries[0]["body"]
+    mb = first["body"]
     man = mb["manifest"]
     mh = hashlib.sha256(cjson(man)).hexdigest()
     keys = man["keys"]
@@ -233,9 +244,6 @@ def _verify(d: Path, rep: Report, pin: str | None, allow_insecure: bool, pin_src
     rep.add("group.sanity", "Group generator has order q", Gq.g != 1 and powmod(Gq.g, Gq.q, Gq.p) == 1 and (Gq.p - 1) % Gq.q == 0)
 
     # ---------------------------------------------------------------- 3. checkpoints
-    cps = [json.loads(x) for x in (d / "checkpoints.jsonl").read_bytes().split(b"\n") if x]
-    leaves = [leaf(ln) for ln in lines]
-    roots = roots_at(leaves, {cp.get("tree_size", -1) for cp in cps})
     ok, why, prev = bool(cps), "", None
     for cp in cps:
         size = cp["tree_size"]
@@ -259,13 +267,13 @@ def _verify(d: Path, rep: Report, pin: str | None, allow_insecure: bool, pin_src
     rep.add(
         "board.sealed",
         "Final signed checkpoint covers every entry",
-        bool(cps) and cps[-1]["tree_size"] == len(entries),
-        f"final size {cps[-1]['tree_size'] if cps else 0} of {len(entries)}",
+        bool(cps) and cps[-1]["tree_size"] == count,
+        f"final size {cps[-1]['tree_size'] if cps else 0} of {count}",
     )
     rep.facts["final_root"] = cps[-1]["root"] if cps else None
 
     # ---------------------------------------------------------------- 4. structure walk
-    it = iter(entries[1:])
+    it = _stream_entries(d / "entries.jsonl", skip=1)
 
     def nxt(expected_type: str, state: str | None = None) -> dict:
         try:
@@ -342,52 +350,54 @@ def _verify(d: Path, rep: Report, pin: str | None, allow_insecure: bool, pin_src
     lifecycle("READY")
     open_e = lifecycle("OPEN")
 
-    # ---------------------------------------------------------------- 5. ballots
-    ballots = []
-    while True:
-        try:
-            e = next(it)
-        except StopIteration:
-            raise StructureError("record ends before CLOSED") from None
-        if e["type"] == "ballot":
-            ballots.append(e)
-            continue
-        if e["type"] != "lifecycle" or e["body"].get("state") != "CLOSED":
-            raise StructureError(f"entry {e['seq']}: only ballots may appear between OPEN and CLOSED (got {e['type']})")
-        if not ed_ok(e["body"], keys["officer"], "officer"):
-            raise StructureError("CLOSED not signed by officer")
-        close_e = e
-        break
-
+    # ---------------------------------------------------------------- 5. ballots (streamed in bounded chunks)
     options = {c["id"]: [o["id"] for o in c["options"]] for c in man["constituencies"]}
     ctx = {"p": Gq.p, "q": Gq.q, "g": Gq.g, "K": K, "mhash": mh, "election_id": eid, "options": options, "issuers": issuers}
-    bodies = [b["body"]["ballot"] for b in ballots]
-    workers = workers or os.cpu_count() or 1
-    if len(bodies) > 200 and workers > 1:
-        with mp.get_context("spawn").Pool(workers, initializer=_binit, initargs=(ctx,)) as pool:
-            codes = pool.map(_check_ballot, bodies, chunksize=64)
-    else:
-        _binit(ctx)
-        codes = [_check_ballot(b) for b in bodies]
-    bad = [(ballots[i]["seq"], c) for i, c in enumerate(codes) if c]
-    detail = f"{len(bodies)} checked" + (f"; invalid (seq, reason): {bad[:5]}" if bad else "")
-    rep.add("ballots.valid", "Every ballot carries a valid credential, ciphertexts and proofs (exactly one selection)", not bad, detail)
-    toks = Counter(b["credential"]["token"] for b in bodies)
-    alph = Counter(s["ciphertext"]["alpha"] for b in bodies for s in b["selections"])
-    rep.add("ballots.one_per_credential", "No credential used twice", all(v == 1 for v in toks.values()), f"{sum(v > 1 for v in toks.values())} reused")
-    rep.add("ballots.no_copies", "No ciphertext appears twice (ballot-copying defence)", all(v == 1 for v in alph.values()))
-    tc_ok = all(e["body"]["tracking_code"] == hashlib.sha256(cjson(e["body"]["ballot"])).hexdigest() for e in ballots)
-    rep.add("ballots.tracking_codes", "Tracking codes equal the hash of each ballot", tc_ok)
     w0, w1 = _ts(man["window"]["opens_at"]), _ts(man["window"]["closes_at"])
-    in_win = all(_hour(_hour_floor(w0)) <= _hour(e["time_bucket"]) <= _hour(_hour_floor(w1)) for e in ballots)
+    h0, h1 = _hour(_hour_floor(w0)), _hour(_hour_floor(w1))
+    workers = workers or os.cpu_count() or 1
+    tally = _BallotTally(ctx, workers if count > 400 else 1)
+    in_win = True
+    chunk: list[tuple[int, dict]] = []
+    try:
+        while True:
+            try:
+                e = next(it)
+            except StopIteration:
+                raise StructureError("record ends before CLOSED") from None
+            if e["type"] == "ballot":
+                in_win &= h0 <= _hour(e["time_bucket"]) <= h1
+                chunk.append((e["seq"], e["body"]))
+                if len(chunk) >= _CHUNK:
+                    tally.submit(chunk)
+                    chunk = []
+                continue
+            if e["type"] != "lifecycle" or e["body"].get("state") != "CLOSED":
+                raise StructureError(f"entry {e['seq']}: only ballots may appear between OPEN and CLOSED (got {e['type']})")
+            if not ed_ok(e["body"], keys["officer"], "officer"):
+                raise StructureError("CLOSED not signed by officer")
+            close_e = e
+            break
+        if chunk:
+            tally.submit(chunk)
+        tally.finish()
+    finally:
+        tally.close()
+    n_all = sum(tally.count.values())
+    bad = sorted(tally.bad)
+    detail = f"{n_all} checked" + (f"; invalid (seq, reason): {bad[:5]}" if bad else "")
+    rep.add("ballots.valid", "Every ballot carries a valid credential, ciphertexts and proofs (exactly one selection)", not bad, detail)
+    rep.add("ballots.one_per_credential", "No credential used twice", tally.dup_tokens == 0, f"{tally.dup_tokens} reused")
+    rep.add("ballots.no_copies", "No ciphertext appears twice (ballot-copying defence)", tally.dup_alphas == 0)
+    rep.add("ballots.tracking_codes", "Tracking codes equal the hash of each ballot", tally.bad_tracking == 0)
     rep.add("ballots.window", "Ballots were recorded inside the published voting window (hour resolution)", in_win)
     rep.add("lifecycle.open_time", "Election opened no earlier than the published opening hour", _hour(open_e["time_bucket"]) >= _hour(_hour_floor(w0)))
     cb = close_e["body"]
     rep.add(
         "lifecycle.close_count",
         "CLOSED entry states the number of ballots actually recorded",
-        cb.get("ballots_accepted") == len(ballots),
-        f"{cb.get('ballots_accepted')} vs {len(ballots)}",
+        cb.get("ballots_accepted") == n_all,
+        f"{cb.get('ballots_accepted')} vs {n_all}",
     )
     if "early_close_reason" in cb:
         rep.add("lifecycle.early_close", "Polls closed at the published time", None, f"EARLY CLOSE: {cb['early_close_reason']}")
@@ -395,7 +405,7 @@ def _verify(d: Path, rep: Report, pin: str | None, allow_insecure: bool, pin_src
 
     # ---------------------------------------------------------------- 6. participation
     ps = nxt("participation_summary")["body"]
-    per_cons_ballots = Counter(b["constituency"] for b in bodies)
+    per_cons_ballots = tally.count
     pok, notes = ed_ok(ps, keys["eligibility"], "eligibility"), []
     for c in man["constituencies"]:
         s = ps["constituencies"].get(c["id"])
@@ -424,19 +434,14 @@ def _verify(d: Path, rep: Report, pin: str | None, allow_insecure: bool, pin_src
     roles = {m["index"]: m for m in members}
     for c in man["constituencies"]:
         cid, opts = c["id"], options[c["id"]]
-        mine = [b for b in bodies if b["constituency"] == cid]
+        mine_n = tally.count.get(cid, 0)
         ag = nxt("aggregate")["body"]
         if ag["constituency"] != cid or not ed_ok(ag, keys["officer"], "officer"):
             raise StructureError(f"aggregate for {cid} missing or unsigned")
-        aggs = {}
-        for j, oid in enumerate(opts):
-            A = B = 1
-            for b in mine:
-                A = A * hx(b["selections"][j]["ciphertext"]["alpha"]) % Gq.p
-                B = B * hx(b["selections"][j]["ciphertext"]["beta"]) % Gq.p
-            aggs[oid] = (A, B)
+        acc = tally.agg.get(cid) or [[1, 1] for _ in opts]
+        aggs = {oid: (acc[j][0], acc[j][1]) for j, oid in enumerate(opts)}
         posted = {x["option_id"]: (hx(x["ciphertext"]["alpha"]), hx(x["ciphertext"]["beta"])) for x in ag["aggregates"]}
-        if posted != aggs or ag["ballot_count"] != len(mine):
+        if posted != aggs or ag["ballot_count"] != mine_n:
             tally_ok = False
             tnotes.append(f"{cid}: aggregate mismatch")
         got: dict[str, dict[int, int]] = {oid: {} for oid in opts}
@@ -481,23 +486,17 @@ def _verify(d: Path, rep: Report, pin: str | None, allow_insecure: bool, pin_src
             for i in providers:
                 s = s * Gq.e(got[oid][i], _lagrange0(Gq.q, providers, i)) % Gq.p
             gm = B * pow(s, -1, Gq.p) % Gq.p
-            acc, m = 1, None
-            for t in range(len(mine) + 1):
-                if acc == gm:
-                    m = t
-                    break
-                acc = acc * Gq.g % Gq.p
-            counts[oid] = m
+            counts[oid] = _bsgs(Gq, gm, mine_n)
         posted_counts = {x["option_id"]: x["votes"] for x in res["counts"]}
-        if any(v is None for v in counts.values()) or counts != posted_counts or sum(posted_counts.values()) != len(mine):
+        if any(v is None for v in counts.values()) or counts != posted_counts or sum(posted_counts.values()) != mine_n:
             res_ok = False
             tnotes.append(f"{cid}: decrypted {counts} != published {posted_counts}")
         dec = _decide(posted_counts)
-        if {kk: res.get(kk) for kk in dec} != dec or res["ballot_count"] != len(mine):
+        if {kk: res.get(kk) for kk in dec} != dec or res["ballot_count"] != mine_n:
             res_ok = False
             tnotes.append(f"{cid}: winner/tie flags do not follow the published rule")
         rep.results.setdefault(cid, {}).update(
-            name=c["name"], counts=posted_counts, ballots=len(mine), quorum=providers, options={o["id"]: o["name"] for o in c["options"]}, **dec
+            name=c["name"], counts=posted_counts, ballots=mine_n, quorum=providers, options={o["id"]: o["name"] for o in c["options"]}, **dec
         )
     rep.add("tally.aggregates", "Encrypted per-option totals equal the product of all accepted ballots", tally_ok, "; ".join(tnotes))
     rep.add("tally.decryption", f"At least {k} trustees decrypted each total with valid proofs", dec_ok)
@@ -507,6 +506,125 @@ def _verify(d: Path, rep: Report, pin: str | None, allow_insecure: bool, pin_src
     if next(it, None) is not None:
         raise StructureError("entries after PUBLISHED")
     rep.add("record.structure", "Record follows the required entry sequence", True)
+
+
+# --------------------------------------------------------------------- streaming helpers
+_CHUNK = 512
+
+
+def _stream_entries(path: Path, skip: int = 0):
+    """Parsed entries straight from disk, one at a time."""
+    with open(path, "rb") as fh:
+        for i, raw in enumerate(fh):
+            if i >= skip:
+                yield json.loads(raw)
+
+
+def _check_chunk(items: list[tuple[int, dict]]) -> dict:
+    """Worker: verify ballots, tracking codes, partial aggregates and dedup fingerprints for one chunk."""
+    p, options = _B["G"].p, _B["options"]
+    bad, bad_tc, agg, count, toks, alphas = [], 0, {}, Counter(), [], []
+    for seq, body in items:
+        b = body.get("ballot") if isinstance(body, dict) else None
+        code = _check_ballot(b) if isinstance(b, dict) else "MALFORMED"
+        if code:
+            bad.append((seq, code))
+        try:
+            if body["tracking_code"] != hashlib.sha256(cjson(b)).hexdigest():
+                bad_tc += 1
+            cons = b["constituency"]
+            count[cons] += 1
+            toks.append(hashlib.sha256(b["credential"]["token"].encode()).digest()[:16])
+            sels = b["selections"]
+            alphas.extend(hashlib.sha256(s["ciphertext"]["alpha"].encode()).digest()[:16] for s in sels)
+            if cons in options and len(sels) == len(options[cons]):
+                acc = agg.setdefault(cons, [[1, 1] for _ in sels])
+                for j, s in enumerate(sels):
+                    acc[j][0] = acc[j][0] * hx(s["ciphertext"]["alpha"]) % p
+                    acc[j][1] = acc[j][1] * hx(s["ciphertext"]["beta"]) % p
+        except (KeyError, TypeError, ValueError, AttributeError):
+            bad_tc += 1
+    return {"bad": bad, "bad_tc": bad_tc, "agg": agg, "count": dict(count), "toks": toks, "alphas": alphas}
+
+
+class _BallotTally:
+    """Runs chunk checks (in a bounded process pool when workers > 1), merges partial
+    aggregates, and detects duplicate credentials/ciphertexts with an on-disk index,
+    so memory stays flat however many ballots the record holds."""
+
+    def __init__(self, ctx: dict, workers: int) -> None:
+        self.ctx, self.p = ctx, ctx["p"]
+        self.bad: list[tuple[int, str]] = []
+        self.bad_tracking = 0
+        self.dup_tokens = 0
+        self.dup_alphas = 0
+        self.agg: dict[str, list[list[int]]] = {}
+        self.count: Counter[str] = Counter()
+        self._tmp = tempfile.TemporaryDirectory(prefix="chunaviq-verify-")
+        self._db = sqlite3.connect(os.path.join(self._tmp.name, "dedup.db"))
+        self._db.executescript(
+            "PRAGMA journal_mode=OFF; PRAGMA synchronous=OFF;"
+            "CREATE TABLE tok(fp BLOB PRIMARY KEY) WITHOUT ROWID; CREATE TABLE alp(fp BLOB PRIMARY KEY) WITHOUT ROWID;"
+        )
+        self._pool: ProcessPoolExecutor | None = None
+        self._pending: deque = deque()
+        self._max_pending = 2 * workers
+        if workers > 1:
+            self._pool = ProcessPoolExecutor(max_workers=workers, mp_context=mp.get_context("spawn"), initializer=_binit, initargs=(ctx,))
+        else:
+            _binit(ctx)
+
+    def submit(self, chunk: list[tuple[int, dict]]) -> None:
+        if self._pool is None:
+            self._merge(_check_chunk(chunk))
+            return
+        self._pending.append(self._pool.submit(_check_chunk, chunk))
+        while len(self._pending) >= self._max_pending:
+            self._merge(self._pending.popleft().result())
+
+    def finish(self) -> None:
+        while self._pending:
+            self._merge(self._pending.popleft().result())
+
+    def _merge(self, r: dict) -> None:
+        self.bad.extend(r["bad"])
+        self.bad_tracking += r["bad_tc"]
+        self.count.update(r["count"])
+        for cons, acc in r["agg"].items():
+            mine = self.agg.setdefault(cons, [[1, 1] for _ in acc])
+            for j, (a, b) in enumerate(acc):
+                mine[j][0] = mine[j][0] * a % self.p
+                mine[j][1] = mine[j][1] * b % self.p
+        before = self._db.total_changes
+        self._db.executemany("INSERT OR IGNORE INTO tok VALUES (?)", [(x,) for x in r["toks"]])
+        self.dup_tokens += len(r["toks"]) - (self._db.total_changes - before)
+        before = self._db.total_changes
+        self._db.executemany("INSERT OR IGNORE INTO alp VALUES (?)", [(x,) for x in r["alphas"]])
+        self.dup_alphas += len(r["alphas"]) - (self._db.total_changes - before)
+
+    def close(self) -> None:
+        if self._pool is not None:
+            self._pool.shutdown(cancel_futures=True)
+        self._db.close()
+        self._tmp.cleanup()
+
+
+def _bsgs(Gq: G, target: int, bound: int) -> int | None:
+    """Smallest m in [0, bound] with g^m = target, by baby-step giant-step; None if absent."""
+    n = isqrt(bound) + 1
+    table: dict[int, int] = {}
+    acc = 1
+    for j in range(n):
+        table.setdefault(acc, j)
+        acc = acc * Gq.g % Gq.p
+    step = pow(acc, -1, Gq.p)
+    cur = target
+    for i in range(n + 1):
+        if cur in table:
+            m = i * n + table[cur]
+            return m if m <= bound else None
+        cur = cur * step % Gq.p
+    return None
 
 
 def _hour_floor(t: dt.datetime) -> str:

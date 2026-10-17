@@ -45,11 +45,25 @@ export function addCts(cts: Ct[]): Ct {
   return { alpha: a, beta: b };
 }
 
+/** Baby-step giant-step discrete log in [0, bound]: O(sqrt(bound)). */
 export function dlogBounded(gm: bigint, bound: number): number {
+  const n = Math.floor(Math.sqrt(bound)) + 1;
+  const baby = new Map<bigint, number>();
   let acc = 1n;
-  for (let m = 0; m <= bound; m++) {
-    if (acc === gm) return m;
+  for (let j = 0; j < n; j++) {
+    if (!baby.has(acc)) baby.set(acc, j);
     acc = (acc * G) % P;
+  }
+  const giant = modinv(acc, P);
+  let gamma = ((gm % P) + P) % P;
+  for (let i = 0; i <= n; i++) {
+    const j = baby.get(gamma);
+    if (j !== undefined) {
+      const m = i * n + j;
+      if (m <= bound) return m;
+      break;
+    }
+    gamma = (gamma * giant) % P;
   }
   throw new RangeError("plaintext outside expected range");
 }

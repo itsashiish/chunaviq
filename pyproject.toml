@@ -26,7 +26,8 @@ where = ["src"]
 testpaths = ["tests"]
 addopts = "-ra"
 markers = [
-  "slow: long-running (scale, group re-derivation); run with -m slow",
+  "slow: long-running (10,000-voter election); run with -m slow",
+  "scale: national-scale properties (constituency-size counting, federation, bounded memory, ingest); run with -m scale",
 ]
 
 [tool.ruff]

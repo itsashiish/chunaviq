@@ -113,6 +113,25 @@ function decide(counts: Record<string, number>) {
   return { winner: lead.length === 1 ? lead[0] : null, tied: lead.length > 1 ? lead : [], nota_exceeds_winner: (counts.NOTA ?? 0) > top };
 }
 
+/** Independent baby-step giant-step (does not import the engine's version). */
+function bsgs(target: bigint, bound: number): number | null {
+  const n = Math.floor(Math.sqrt(bound)) + 1;
+  const table = new Map<bigint, number>();
+  let acc = 1n;
+  for (let j = 0; j < n; j++) {
+    if (!table.has(acc)) table.set(acc, j);
+    acc = (acc * G) % P;
+  }
+  const step = modinv(acc, P);
+  let cur = target;
+  for (let i = 0; i <= n; i++) {
+    const j = table.get(cur);
+    if (j !== undefined) return i * n + j <= bound ? i * n + j : null;
+    cur = (cur * step) % P;
+  }
+  return null;
+}
+
 const hourFloor = (s: string) => new Date(s).toISOString().slice(0, 13);
 
 export async function verifyRecord(entriesText: string, checkpointsText: string, opts: { expectManifestHash?: string; checker?: BallotChecker; onProgress?: (label: string, done: number, total: number) => void } = {}): Promise<Report> {
@@ -394,16 +413,7 @@ export async function verifyRecord(entriesText: string, checkpointsText: string,
         const [, B] = aggs[oid];
         let s = 1n;
         for (const i of providers) s = (s * pw(got[oid].get(i) ?? 1n, lagrange0(providers, i))) % P;
-        const gm = (B * modinv(s, P)) % P;
-        let acc = 1n;
-        counts[oid] = null;
-        for (let t = 0; t <= mine.length; t++) {
-          if (acc === gm) {
-            counts[oid] = t;
-            break;
-          }
-          acc = (acc * G) % P;
-        }
+        counts[oid] = bsgs((B * modinv(s, P)) % P, mine.length);
       }
       const postedCounts = Object.fromEntries((res.counts as { option_id: string; votes: number }[]).map((x) => [x.option_id, x.votes]));
       const total = Object.values(postedCounts).reduce((a, b) => a + b, 0);

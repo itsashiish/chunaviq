@@ -24,18 +24,19 @@ class SyntheticVoter:
     auth_secret: bytes  # stands in for the authority's real authentication factors
 
 
-def make_constituencies(count: int, candidates_per: int, eligible: list[int], seed: int) -> list[Constituency]:
+def make_constituencies(count: int, candidates_per: int, eligible: list[int], seed: int, start: int = 1, prefix: str = "SYN-AC") -> list[Constituency]:
     rng = random.Random(seed)
     out = []
     for i in range(count):
         cands = [Candidate(f"C{j + 1}", f"Synthetic Candidate {i + 1}.{j + 1}", rng.choice(SYN_PARTIES)) for j in range(candidates_per)]
         cands.append(Candidate(NOTA_ID, "None of the Above", "-"))
-        out.append(Constituency(f"SYN-AC-{i + 1:02d}", f"Synthetic Constituency {i + 1}", tuple(cands), eligible[i]))
+        n = start + i
+        out.append(Constituency(f"{prefix}-{n:02d}" if prefix == "SYN-AC" else f"{prefix}-{n:03d}", f"Synthetic Constituency {n}", tuple(cands), eligible[i]))
     return out
 
 
-def make_roll(constituencies: list[Constituency]) -> list[SyntheticVoter]:
-    roll, n = [], 0
+def make_roll(constituencies: list[Constituency], start: int = 1) -> list[SyntheticVoter]:
+    roll, n = [], start - 1
     for c in constituencies:
         for _ in range(c.eligible_voters):
             n += 1

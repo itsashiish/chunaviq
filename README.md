@@ -28,6 +28,16 @@ public record ──▶ independent verifier ──▶ VERIFIED / NOT VERIFIED +
 
 What it **does not** solve — coercion, vote-buying via self-revealed receipts, malicious devices that suppress challenges, denial of service, and credential minting by a dishonest eligibility authority — is written down in [`docs/threat-model.md`](docs/threat-model.md). Those gaps are the main reason this project does not recommend remote online voting for binding public elections.
 
+## National scale
+
+Designed and tested for a 100–150 crore elector, seven-day election: one independent shard per constituency, a signed national layer, streaming verification with bounded memory, and counting that works at 58 lakh votes per option. Unit costs are measured and the national figures modelled from them: about 3,200 CPU cores verify ballots at the busiest hour. Details, and what remains open: [`docs/scale.md`](docs/scale.md).
+
+```bash
+make scale-national                         # national-scale property tests
+chunaviq federate out --shards 24 && chunaviq verify-federation out
+make capacity                               # re-measure and regenerate docs/scale/capacity.md
+```
+
 ## The browser demo (`web/`)
 
 A second, independent implementation of the protocol in TypeScript (React + Vite) that runs a complete election inside one browser tab: key ceremony, blind credential, ballot encryption on the voter's device with a Benaloh check, a 110-voter synthetic crowd, six cheating attempts, threshold tally, full verification, and three record-tampering attempts.
@@ -62,7 +72,7 @@ chunaviq report out/verify.json out/observer-report.html
 
 | | |
 |---|---|
-| 10,000-voter run | [`audits/scale-10k/`](audits/scale-10k/) — 6,837 ballots, 5 constituencies, 9/9 injected attacks rejected, independently VERIFIED, counts equal ground truth |
+| 10,000-voter run | [`audits/scale-10k/`](audits/scale-10k/) — 6,837 ballots, 5 constituencies, every injected attack refused (an identical replay gets its original receipt), independently VERIFIED, counts equal ground truth |
 | Self-assessment | [`audits/2026-10-17-self-assessment.md`](audits/2026-10-17-self-assessment.md) — including a receipt-freeness defect the fuzzer found and its fix |
 | Invariants → tests | [`spec/invariants.md`](spec/invariants.md) |
 

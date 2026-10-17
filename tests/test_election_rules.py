@@ -5,7 +5,7 @@ import datetime as dt
 import json
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from chunaviq.crypto.elgamal import Ciphertext
@@ -160,6 +160,17 @@ def test_valid_ballot_accepted_with_verifiable_receipt(election):
     assert not verify_receipt(election.record, forged)
 
 
+def test_identical_retry_returns_original_receipt(election):
+    d = election.credentialed(0)
+    b = d.prepare("C1").ballot
+    first = election.box.submit(b)
+    again = election.box.submit(b)
+    assert again == dict(first, duplicate_submission=True)
+    assert election.board.count("ballot") == 1
+    election.clock.set(election.box.closes)  # even after polls close, the receipt is returned
+    assert election.box.submit(b)["seq"] == first["seq"]
+
+
 def test_credential_reuse_rejected(election):
     d = election.credentialed(0)
     election.box.submit(d.prepare("C1").ballot)
@@ -267,6 +278,7 @@ def test_fuzzed_ballots_never_crash_and_never_accepted(tmp_path_factory, muts):
         paths = [p for p in _paths(b) if p]  # never the root: every mutation must change something
         path = paths[n % len(paths)]
         _mutate(b, path, kind)
+    assume(b != e._fuzz_base)  # two mutations can cancel out and restore the valid ballot
     with pytest.raises(BallotRejected):
         e.box.check(b)
 

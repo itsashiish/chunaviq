@@ -22,7 +22,7 @@ def test_public_record_contains_no_voter_identifiers(finished):
 def test_ballot_box_database_holds_no_identity(finished):
     con = sqlite3.connect(finished.tmp / "private" / "box.db")
     cols = {r[1] for t in ("used_tokens", "alphas") for r in con.execute(f"PRAGMA table_info({t})")}
-    assert cols == {"token", "seq", "alpha"}
+    assert cols == {"token", "seq", "tc", "alpha"}  # tc = public tracking code, for idempotent retries
     blob = (finished.tmp / "private" / "box.db").read_bytes()
     assert b"syn-v-" not in blob
 

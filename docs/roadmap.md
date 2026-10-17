@@ -6,7 +6,7 @@
 | 02 Repository & reproducible development | CI, lint, SHA-pinned actions, hash-locked deps, CodeQL, dependency review, security policy, branch protection script | **Done** | Clean clone → passing tests on CI |
 | 03 Synthetic election prototype | Roll, credentials, ballot box, board, lifecycle, threshold tally, observer report | **Done** | Invariants hold under automated tests (`spec/invariants.md`) |
 | 04 Protocol & security verification | Independent cryptographic review; second verifier in another language (**TypeScript verifier done, same author**) and by another team; coverage-guided fuzzing; formal model of the lifecycle (e.g. TLA+ or Tamarin for the protocol) | Partial | No unresolved critical findings |
-| 05 Scale & resilience | 10,000-voter simulation **done**; networked service with load and DoS testing; observer gossip of checkpoints; continuous mirroring | Partial | Documented capacity and tested recovery under network faults |
+| 05 Scale & resilience | 10,000-voter simulation **done**; national federation, streaming verification, group commit, idempotent retries, constituency-scale counting **done** (`docs/scale.md`); networked service, full-volume dress rehearsal, DoS testing, continuous checkpoint gossip still to do | Partial | Documented capacity and tested recovery under network faults |
 | 06 Independent evaluation & legal gate | Pen test, privacy assessment, operational audit, authority approval | Out of scope for this repository | Written authorisation from a competent election authority |
 
 ## Open design items (highest risk first)

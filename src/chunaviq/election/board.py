@@ -14,6 +14,9 @@ from __future__ import annotations
 import json
 import os
 import threading
+from array import array
+from collections import Counter
+from collections.abc import Iterator
 from pathlib import Path
 
 from ..crypto.encoding import canonical_json, sha256_hex
@@ -29,6 +32,11 @@ class BoardError(Exception):
 
 
 class Board:
+    """Memory use is O(entries x 40 bytes) -- Merkle leaf hashes and byte offsets --
+    never O(record size). Entry bodies live only on disk and are streamed back
+    with ``iter_entries``; a 58-lakh-ballot constituency therefore needs a few
+    hundred MB, not the hundreds of GB its record occupies."""
+
     def __init__(self, directory: Path, election_id: str, operator: RoleKey, clock, durable: bool = True) -> None:
         self.dir = Path(directory)
         self.dir.mkdir(parents=True, exist_ok=True)
@@ -37,9 +45,11 @@ class Board:
         self.clock = clock
         self.durable = durable
         self.tree = MerkleTree()
-        self.entries: list[dict] = []
         self.checkpoints: list[dict] = []
         self.state = "DRAFT"
+        self._offsets = array("Q")
+        self._end = 0
+        self._counts: Counter[str] = Counter()
         self._lock = threading.RLock()
         self._entries_path = self.dir / "entries.jsonl"
         self._cp_path = self.dir / "checkpoints.jsonl"
@@ -54,20 +64,24 @@ class Board:
                 f.flush()
                 os.fsync(f.fileno())
 
+    def _track(self, entry_type: str, line: bytes, state: str | None) -> None:
+        self._offsets.append(self._end)
+        self._end += len(line) + 1
+        self.tree.append(line)
+        self._counts[entry_type] += 1
+        if state is not None:
+            self.state = state
+
     def _load(self) -> None:
         """Crash recovery: rebuild the tree and refuse to continue if the stored
         entries disagree with any checkpoint the operator already signed."""
-        raw_lines = self._entries_path.read_bytes().split(b"\n")
-        for i, line in enumerate(raw_lines):
-            if not line:
-                continue
-            entry = json.loads(line)
-            if canonical_json(entry) != line or entry.get("seq") != len(self.entries):
-                raise BoardError(f"entries.jsonl line {i} is not canonical or out of sequence")
-            self.entries.append(entry)
-            self.tree.append(line)
-            if entry["type"] == "lifecycle":
-                self.state = entry["body"]["state"]
+        with open(self._entries_path, "rb") as f:
+            for i, raw in enumerate(f):
+                line = raw.rstrip(b"\n")
+                entry = json.loads(line)
+                if canonical_json(entry) != line or entry.get("seq") != self.size:
+                    raise BoardError(f"entries.jsonl line {i} is not canonical or out of sequence")
+                self._track(entry["type"], line, entry["body"]["state"] if entry["type"] == "lifecycle" else None)
         if self._cp_path.exists():
             for line in self._cp_path.read_bytes().split(b"\n"):
                 if line:
@@ -78,6 +92,44 @@ class Board:
                         raise BoardError("stored entries do not match a signed checkpoint (tampering or truncation)")
                     self.checkpoints.append(cp)
 
+    # ------------------------------------------------------------------ reading
+    @property
+    def size(self) -> int:
+        return len(self._offsets)
+
+    def count(self, entry_type: str) -> int:
+        return self._counts[entry_type]
+
+    def line(self, seq: int) -> bytes:
+        with open(self._entries_path, "rb") as f:
+            f.seek(self._offsets[seq])
+            return f.readline().rstrip(b"\n")
+
+    def entry(self, seq: int) -> dict:
+        return json.loads(self.line(seq))
+
+    def iter_entries(self, entry_type: str | None = None) -> Iterator[dict]:
+        """Stream entries from disk (constant memory)."""
+        if not self._entries_path.exists():
+            return
+        needle = None if entry_type is None else b'"type":"' + entry_type.encode() + b'"'
+        with open(self._entries_path, "rb") as f:
+            for raw in f:
+                if needle is not None and needle not in raw:
+                    continue
+                e = json.loads(raw)
+                if entry_type is None or e["type"] == entry_type:
+                    yield e
+
+    @property
+    def entries(self) -> list[dict]:
+        """Every entry, loaded from disk. O(record size): for tests and small
+        elections only; production paths use iter_entries / count / size."""
+        return list(self.iter_entries())
+
+    def entries_of(self, entry_type: str) -> list[dict]:
+        return list(self.iter_entries(entry_type))
+
     # ---------------------------------------------------------------------- append
     def append(self, entry_type: str, body: dict) -> dict:
         with self._lock:
@@ -86,18 +138,37 @@ class Board:
                 if LIFECYCLE_ORDER.index(new) != LIFECYCLE_ORDER.index(self.state) + 1:
                     raise BoardError(f"illegal lifecycle transition {self.state} -> {new}")
             entry = {
-                "seq": len(self.entries),
+                "seq": self.size,
                 "type": entry_type,
                 "time_bucket": hour_bucket(self.clock.now()),
                 "body": body,
             }
             data = canonical_json(entry)
             self._write_line(self._entries_path, data)
-            self.entries.append(entry)
-            self.tree.append(data)
-            if entry_type == "lifecycle":
-                self.state = body["state"]
+            self._track(entry_type, data, body["state"] if entry_type == "lifecycle" else None)
             return entry
+
+    def append_ballots(self, bodies: list[dict]) -> list[dict]:
+        """Group commit: append many ballot entries with ONE write and ONE fsync.
+        Callers acknowledge a voter only after this returns, so durability is the
+        same as appending one at a time, at a fraction of the disk cost."""
+        with self._lock:
+            if not bodies:
+                return []
+            bucket = hour_bucket(self.clock.now())
+            entries, lines = [], []
+            for i, body in enumerate(bodies):
+                entry = {"seq": self.size + i, "type": "ballot", "time_bucket": bucket, "body": body}
+                entries.append(entry)
+                lines.append(canonical_json(entry))
+            with open(self._entries_path, "ab") as f:
+                f.write(b"".join(line + b"\n" for line in lines))
+                if self.durable:
+                    f.flush()
+                    os.fsync(f.fileno())
+            for line in lines:
+                self._track("ballot", line, None)
+            return entries
 
     def checkpoint(self) -> dict:
         with self._lock:
@@ -131,7 +202,7 @@ class Board:
         cp = self.checkpoints[-1]
         if seq >= cp["tree_size"]:
             raise BoardError("entry not yet covered by a signed checkpoint")
-        entry = self.entries[seq]
+        entry = self.entry(seq)
         leaves = self.tree.levels[0][: cp["tree_size"]]
         from ..crypto.merkle import reference_path
 
@@ -144,6 +215,3 @@ class Board:
             "root": cp["root"],
             "inclusion_path": [h.hex() for h in path],
         }
-
-    def entries_of(self, entry_type: str) -> list[dict]:
-        return [e for e in self.entries if e["type"] == entry_type]

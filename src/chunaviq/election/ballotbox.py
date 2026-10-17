@@ -50,7 +50,7 @@ class BallotBox:
         self._conn().executescript(
             """
             PRAGMA journal_mode=WAL;
-            CREATE TABLE IF NOT EXISTS used_tokens(token TEXT PRIMARY KEY, seq INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS used_tokens(token TEXT PRIMARY KEY, seq INTEGER NOT NULL, tc TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS alphas(alpha TEXT PRIMARY KEY);
             """
         )
@@ -74,9 +74,26 @@ class BallotBox:
             raise BallotRejected("OUTSIDE_VOTING_WINDOW")
 
     # -------------------------------------------------------------------- submit
+    def _prior(self, ballot: dict) -> dict | None:
+        """Idempotent retries: if this exact ballot was already accepted (a voter's
+        device retrying after a dropped connection), return the original receipt
+        instead of an error. Nothing new is recorded, so nothing is counted twice.
+        A *different* ballot with the same credential is still refused."""
+        try:
+            token, tc = ballot["credential"]["token"], tracking_code(ballot)
+        except (KeyError, TypeError):
+            return None
+        row = self._conn().execute("SELECT seq, tc FROM used_tokens WHERE token=?", (token,)).fetchone()
+        if row and row[1] == tc:
+            return {"tracking_code": tc, "seq": row[0], "duplicate_submission": True}
+        return None
+
     def submit(self, ballot: dict, prechecked: bool = False) -> dict:
         """Returns {"tracking_code", "seq"} or raises BallotRejected."""
         try:
+            prior = self._prior(ballot)
+            if prior is not None:
+                return prior
             self._gate()
             if not prechecked:
                 self.check(ballot)
@@ -97,8 +114,12 @@ class BallotBox:
             con.execute("BEGIN IMMEDIATE")
             try:
                 try:
-                    con.execute("INSERT INTO used_tokens(token, seq) VALUES(?, ?)", (token, len(self.board.entries)))
+                    con.execute("INSERT INTO used_tokens(token, seq, tc) VALUES(?, ?, ?)", (token, self.board.size, tc))
                 except sqlite3.IntegrityError:
+                    row = con.execute("SELECT seq, tc FROM used_tokens WHERE token=?", (token,)).fetchone()
+                    if row and row[1] == tc:  # identical retry raced with the original
+                        con.execute("ROLLBACK")
+                        return {"tracking_code": tc, "seq": row[0], "duplicate_submission": True}
                     raise BallotRejected("CREDENTIAL_ALREADY_USED") from None
                 try:
                     con.executemany("INSERT INTO alphas(alpha) VALUES(?)", [(a,) for a in alphas])
@@ -111,6 +132,74 @@ class BallotBox:
                 raise
         return {"tracking_code": tc, "seq": entry["seq"]}
 
+    def submit_batch(self, ballots: list[dict], prechecked: bool = False) -> list[dict | str]:
+        """Accept many ballots in one transaction and one fsync (group commit).
+
+        Returns, per ballot, {"tracking_code", "seq"} or a rejection code. Each
+        ballot gets its own SAVEPOINT, so a duplicate inside the batch rejects
+        only that ballot. Used by a constituency shard's sequencer under load."""
+        out: list[dict | str | None] = [None] * len(ballots)
+        if not prechecked:
+            for i, b in enumerate(ballots):
+                try:
+                    self.check(b)
+                except BallotRejected as e:
+                    out[i] = e.code
+        for i, b in enumerate(ballots):
+            if out[i] is None:
+                prior = self._prior(b)
+                if prior is not None:
+                    out[i] = prior
+        con = self._conn()
+        with self._lock:
+            try:
+                self._gate()
+            except BallotRejected as e:
+                for i in range(len(ballots)):
+                    out[i] = out[i] or e.code
+                for code in out:
+                    if isinstance(code, str):
+                        self.rejections[code] += 1
+                return out  # type: ignore[return-value]
+            con.execute("BEGIN IMMEDIATE")
+            try:
+                accepted: list[tuple[int, dict]] = []
+                base = self.board.size
+                for i, b in enumerate(ballots):
+                    if out[i] is not None:
+                        continue
+                    con.execute("SAVEPOINT b")
+                    tc = tracking_code(b)
+                    try:
+                        con.execute("INSERT INTO used_tokens(token, seq, tc) VALUES(?, ?, ?)", (b["credential"]["token"], base + len(accepted), tc))
+                    except sqlite3.IntegrityError:
+                        con.execute("ROLLBACK TO b")
+                        con.execute("RELEASE b")
+                        row = con.execute("SELECT seq, tc FROM used_tokens WHERE token=?", (b["credential"]["token"],)).fetchone()
+                        same = row is not None and row[1] == tc
+                        out[i] = {"tracking_code": tc, "seq": row[0], "duplicate_submission": True} if same else "CREDENTIAL_ALREADY_USED"
+                        continue
+                    try:
+                        con.executemany("INSERT INTO alphas(alpha) VALUES(?)", [(s["ciphertext"]["alpha"],) for s in b["selections"]])
+                    except sqlite3.IntegrityError:
+                        con.execute("ROLLBACK TO b")
+                        con.execute("RELEASE b")
+                        out[i] = "DUPLICATE_CIPHERTEXT"
+                        continue
+                    con.execute("RELEASE b")
+                    accepted.append((i, {"tracking_code": tc, "ballot": b}))
+                entries = self.board.append_ballots([body for _, body in accepted])
+                con.execute("COMMIT")
+            except BaseException:
+                con.execute("ROLLBACK")
+                raise
+        for (i, body), entry in zip(accepted, entries, strict=True):
+            out[i] = {"tracking_code": body["tracking_code"], "seq": entry["seq"]}
+        for r in out:
+            if isinstance(r, str):
+                self.rejections[r] += 1
+        return out  # type: ignore[return-value]
+
     # ------------------------------------------------------------------ recovery
     def rebuild_index(self) -> int:
         """Rebuild used tokens and ciphertext index from the authoritative board."""
@@ -120,9 +209,9 @@ class BallotBox:
             con.execute("DELETE FROM used_tokens")
             con.execute("DELETE FROM alphas")
             n = 0
-            for e in self.board.entries_of("ballot"):
+            for e in self.board.iter_entries("ballot"):
                 b = e["body"]["ballot"]
-                con.execute("INSERT INTO used_tokens(token, seq) VALUES(?, ?)", (b["credential"]["token"], e["seq"]))
+                con.execute("INSERT INTO used_tokens(token, seq, tc) VALUES(?, ?, ?)", (b["credential"]["token"], e["seq"], e["body"]["tracking_code"]))
                 con.executemany("INSERT INTO alphas(alpha) VALUES(?)", [(s["ciphertext"]["alpha"],) for s in b["selections"]])
                 n += 1
             con.execute("COMMIT")
@@ -131,5 +220,5 @@ class BallotBox:
     def reconcile(self) -> dict:
         """Index vs board: both counts must match exactly."""
         db = self._conn().execute("SELECT COUNT(*) FROM used_tokens").fetchone()[0]
-        board = len(self.board.entries_of("ballot"))
+        board = self.board.count("ballot")
         return {"index_tokens": db, "board_ballots": board, "consistent": db == board}

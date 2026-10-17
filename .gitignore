@@ -8,9 +8,9 @@ build/
 .ruff_cache/
 .hypothesis/
 # simulation outputs: records can be hundreds of MB; publish evidence via audits/ or CI artifacts
-run/
-scale/
-sim*/
+/run/
+/scale/
+/sim*/
 *.db
 *.db-wal
 *.db-shm

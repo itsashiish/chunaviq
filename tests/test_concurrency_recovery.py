@@ -34,12 +34,15 @@ def _race(fn, n=THREADS):
         return list(ex.map(run, range(n)))
 
 
-def test_concurrent_duplicate_ballot_submissions_accept_exactly_one(election):
+def test_concurrent_duplicate_ballot_submissions_record_exactly_one(election):
+    """16 identical submissions racing (a device retrying): all get the same receipt,
+    exactly one entry is recorded."""
     b = election.credentialed(0).prepare("C1").ballot
     election.box.check(b)
     out = _race(lambda: election.box.submit(b, prechecked=True))
-    assert sum(r[0] == "ok" for r in out) == 1
-    assert {r[1] for r in out if r[0] == "rejected"} == {"CREDENTIAL_ALREADY_USED"}
+    assert all(r[0] == "ok" for r in out)
+    assert len({(r[1]["tracking_code"], r[1]["seq"]) for r in out}) == 1
+    assert sum(1 for r in out if not r[1].get("duplicate_submission")) == 1
     assert len(election.board.entries_of("ballot")) == 1
 
 

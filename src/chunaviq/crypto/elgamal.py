@@ -8,6 +8,7 @@ individual ballot.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isqrt
 
 from .encoding import from_hex, to_hex
 from .group import FixedBase, Group
@@ -56,11 +57,28 @@ def add(group: Group, cts: list[Ciphertext]) -> Ciphertext:
 
 
 def dlog_bounded(group: Group, gm: int, bound: int) -> int:
-    """Return m in [0, bound] with g^m == gm, or raise. Tallies are bounded by the
-    number of ballots, so a linear scan is sufficient and constant-memory."""
+    """Return m in [0, bound] with g^m == gm, or raise.
+
+    Baby-step giant-step: O(sqrt(bound)) time and memory. A national-scale
+    constituency (~6 million votes for one option) needs ~2,450 baby steps
+    instead of 6 million sequential multiplications."""
+    if bound < 0:
+        raise ValueError("negative bound")
+    p = group.p
+    n = isqrt(bound) + 1
+    baby: dict[int, int] = {}
     acc = 1
-    for m in range(bound + 1):
-        if acc == gm:
-            return m
-        acc = acc * group.g % group.p
+    for j in range(n):
+        baby.setdefault(acc, j)
+        acc = acc * group.g % p
+    giant = pow(acc, -1, p)  # g^-n
+    gamma = gm % p
+    for i in range(n + 1):
+        j = baby.get(gamma)
+        if j is not None:
+            m = i * n + j
+            if m <= bound:
+                return m
+            break
+        gamma = gamma * giant % p
     raise ValueError("plaintext outside expected range (inconsistent tally)")

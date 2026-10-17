@@ -43,6 +43,19 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("check-group", help="re-derive approved groups from their seeds and compare")
 
+    f = sub.add_parser("federate", help="run a national election as one shard per constituency")
+    f.add_argument("out", type=Path)
+    f.add_argument("--shards", type=int, default=24)
+    f.add_argument("--voters-per-shard", type=int, default=300)
+    f.add_argument("--workers", type=int, default=None)
+    f.add_argument("--rsa-bits", type=int, default=3072)
+    f.add_argument("--seed", type=int, default=2026)
+
+    vf = sub.add_parser("verify-federation", help="independently verify a federated national election")
+    vf.add_argument("rest", nargs=argparse.REMAINDER)
+
+    sub.add_parser("capacity", help="benchmark unit costs and model national-scale capacity")
+
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
@@ -73,6 +86,25 @@ def main(argv: list[str] | None = None) -> int:
         from chunaviq_verify.__main__ import main as vmain
 
         return vmain(a.rest)
+
+    if a.cmd == "federate":
+        from .election.federation import FedConfig, run_federation
+
+        fc = FedConfig(shards=a.shards, voters_per_shard=a.voters_per_shard, rsa_bits=a.rsa_bits, seed=a.seed)
+        if a.workers:
+            fc.workers = a.workers
+        print(json.dumps(run_federation(a.out, fc), indent=2, sort_keys=True))
+        return 0
+
+    if a.cmd == "verify-federation":
+        from chunaviq_verify.federation import main as fmain
+
+        return fmain(a.rest)
+
+    if a.cmd == "capacity":
+        from .capacity import main as cmain
+
+        return cmain()
 
     if a.cmd == "report":
         from .report import write_report

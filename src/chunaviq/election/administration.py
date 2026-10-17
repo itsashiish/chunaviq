@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 
-from ..crypto.elgamal import Ciphertext, PublicKey, add, dlog_bounded
+from ..crypto.elgamal import Ciphertext, PublicKey, dlog_bounded
 from ..crypto.encoding import to_hex
 from ..crypto.group import Group
 from ..crypto.signing import RoleKey
@@ -46,9 +46,9 @@ class AdministrationError(Exception):
 class TrusteeHost:
     """One trustee's machine: its signing key and its key-share holder."""
 
-    def __init__(self, index: int, group: Group, k: int) -> None:
+    def __init__(self, index: int, group: Group, k: int, raw_key: bytes | None = None) -> None:
         self.index = index
-        self.key = RoleKey(f"trustee-{index}")
+        self.key = RoleKey(f"trustee-{index}", raw_key)
         self.group = group
         self.k = k
         self.trustee: Trustee | None = None
@@ -80,7 +80,7 @@ class Administration:
         return entry
 
     def publish_manifest(self, manifest: dict) -> str:
-        if self.board.entries:
+        if self.board.size:
             raise AdministrationError("manifest must be the first record entry")
         self.manifest = manifest
         self.mhash = manifest_hash(manifest)
@@ -131,7 +131,7 @@ class Administration:
         early = self.clock.now() < utc(self.manifest["window"]["closes_at"])
         if early and not emergency_reason:
             raise AdministrationError("cannot close before the published closing time without a recorded emergency reason")
-        extra = {"ballots_accepted": len(self.board.entries_of("ballot")), "rejections_by_reason": dict(sorted(rejections.items()))}
+        extra = {"ballots_accepted": self.board.count("ballot"), "rejections_by_reason": dict(sorted(rejections.items()))}
         if early:
             extra["early_close_reason"] = emergency_reason
         self._transition("CLOSED", **extra)
@@ -147,10 +147,17 @@ class Administration:
         if self.board.state != "CLOSED":
             raise AdministrationError("tally requires a CLOSED election")
         grp, k = self.group, self.manifest["trustees"]["threshold"]
-        by_cons: dict[str, list[dict]] = defaultdict(list)
-        for e in self.board.entries_of("ballot"):
-            b = e["body"]["ballot"]
-            by_cons[b["constituency"]].append(b)
+        # One streaming pass over the record: constant memory however many ballots.
+        p = grp.p
+        sums: dict[str, list[list[int]]] = {}
+        n_ballots: dict[str, int] = defaultdict(int)
+        for e in self.board.iter_entries("ballot"):
+            bal = e["body"]["ballot"]
+            acc = sums.setdefault(bal["constituency"], [[1, 1] for _ in bal["selections"]])
+            for j, sel in enumerate(bal["selections"]):
+                acc[j][0] = acc[j][0] * int(sel["ciphertext"]["alpha"], 16) % p
+                acc[j][1] = acc[j][1] * int(sel["ciphertext"]["beta"], 16) % p
+            n_ballots[bal["constituency"]] += 1
         quorum_hosts = [h for h in self.trustees if h.available][:k]
         if len(quorum_hosts) < k:
             raise AdministrationError(f"only {len(quorum_hosts)} trustees available; threshold is {k}")
@@ -159,17 +166,15 @@ class Administration:
         for cons in self.manifest["constituencies"]:
             cid = cons["id"]
             option_ids = [o["id"] for o in cons["options"]]
-            ballots = by_cons.get(cid, [])
-            aggs = {}
-            for j, oid in enumerate(option_ids):
-                cts = [Ciphertext.from_dict(b["selections"][j]["ciphertext"]) for b in ballots]
-                aggs[oid] = add(grp, cts)
+            n = n_ballots.get(cid, 0)
+            acc = sums.get(cid, [[1, 1] for _ in option_ids])
+            aggs = {oid: Ciphertext(acc[j][0], acc[j][1]) for j, oid in enumerate(option_ids)}
             self.board.append(
                 "aggregate",
                 self.officer.sign_body(
                     {
                         "constituency": cid,
-                        "ballot_count": len(ballots),
+                        "ballot_count": n,
                         "aggregates": [{"option_id": oid, "ciphertext": aggs[oid].to_dict()} for oid in option_ids],
                     }
                 ),
@@ -187,8 +192,8 @@ class Administration:
                     shares[oid][host.index] = M
                     items.append({"option_id": oid, "share": to_hex(M), "proof": pr.to_dict()})
                 self.board.append("decryption_shares", host.key.sign_body({"constituency": cid, "index": host.index, "shares": items}))
-            counts = {oid: dlog_bounded(grp, combine(grp, aggs[oid], shares[oid]), len(ballots)) for oid in option_ids}
-            if sum(counts.values()) != len(ballots):
+            counts = {oid: dlog_bounded(grp, combine(grp, aggs[oid], shares[oid]), n) for oid in option_ids}
+            if sum(counts.values()) != n:
                 raise AdministrationError(f"{cid}: decrypted total != ballots")
             results[cid] = decide(counts)
             self.board.append(
@@ -197,7 +202,7 @@ class Administration:
                     {
                         "constituency": cid,
                         "quorum": quorum,
-                        "ballot_count": len(ballots),
+                        "ballot_count": n,
                         "counts": [{"option_id": oid, "votes": counts[oid]} for oid in option_ids],
                         **results[cid],
                     }
