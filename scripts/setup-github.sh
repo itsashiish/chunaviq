@@ -31,7 +31,6 @@ gh repo edit "$REPO" --enable-issues --enable-wiki=false --delete-branch-on-merg
   --add-topic e2e-verifiable-voting --add-topic election-security --add-topic research-prototype
 
 gh api -X PUT "repos/$REPO/vulnerability-alerts" >/dev/null || note "Dependabot alerts not enabled"
-gh api -X PUT "repos/$REPO/automated-security-fixes" >/dev/null || note "Dependabot security updates not enabled"
 
 # Least-privilege default token for Actions; actions are pinned by full SHA.
 gh api -X PUT "repos/$REPO/actions/permissions/workflow" -f default_workflow_permissions=read -F can_approve_pull_request_reviews=false >/dev/null
