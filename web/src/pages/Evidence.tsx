@@ -120,7 +120,7 @@ export function Evidence() {
       </p>
       <p>
         The research paper describing the design and these results:{" "}
-        <a href="https://github.com/itsashiish/chunaviq/blob/main/paper/ChunavIQ-paper.pdf">ChunavIQ (preprint, 2026)</a>. The code and data behind it are
+        <a href="https://doi.org/10.5281/zenodo.23447533">ChunavIQ (preprint, 2026)</a>. The code and data behind it are
         archived at <a href="https://doi.org/10.5281/zenodo.23442948">doi.org/10.5281/zenodo.23442948</a>.
       </p>
 

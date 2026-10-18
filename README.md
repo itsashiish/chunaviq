@@ -6,7 +6,7 @@
 
 **Research prototype** of an end-to-end verifiable, secret-ballot online election, with an **independent verifier** and an adversarial test suite. Legal and audit scope tailored to **India**.
 
-**Paper:** [`paper/ChunavIQ-paper.pdf`](paper/ChunavIQ-paper.pdf) (preprint, 2026) · **Code archive:** [doi.org/10.5281/zenodo.23442948](https://doi.org/10.5281/zenodo.23442948) · **Cite:** [`CITATION.cff`](CITATION.cff)
+**Paper:** [doi.org/10.5281/zenodo.23447533](https://doi.org/10.5281/zenodo.23447533) (preprint, 2026; [PDF](paper/ChunavIQ-paper.pdf)) · **Code archive:** [doi.org/10.5281/zenodo.23442948](https://doi.org/10.5281/zenodo.23442948) · **Cite:** [`CITATION.cff`](CITATION.cff)
 
 Live demo: **https://chunaviq.oglic.com** — prove who you are with a synthetic Aadhaar or PAN, cast a secret ballot, vote again in private, try to cheat, count, and verify it yourself, all in the browser. Also on the site: **How it works** (every method and algorithm, stage by stage), **Law** (what Indian law would need to say), and **Evidence** (dress-rehearsal and capacity results). The 10,000-voter observer report is at `/report`.
 

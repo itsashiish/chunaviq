@@ -37,4 +37,5 @@ preferred-citation:
       orcid: "https://orcid.org/0009-0006-5516-6843"
   year: 2026
   status: preprint
-  url: "https://github.com/itsashiish/chunaviq/blob/main/paper/ChunavIQ-paper.pdf"
+  doi: 10.5281/zenodo.23447533
+  url: "https://doi.org/10.5281/zenodo.23447533"
